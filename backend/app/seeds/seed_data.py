@@ -8,7 +8,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 from sqlalchemy.orm import Session
-from backend.app.database import SessionLocal, Base, engine
+from backend.app.database import SessionLocal, Base, engine, utc_now
 from backend.app.models.user import User, UserRole, Department, StudentProfile, FacultyProfile
 from backend.app.models.complaint import (
     Complaint,
@@ -225,7 +225,7 @@ def seed_database():
                 "disability_required": False,
                 "financial_benefits": "Full tuition fee reimbursement + ₹1,000 monthly maintenance stipend",
                 "required_documents": "Caste & Income Certificate (RD Number), SSLC Marksheet, College Admission Receipt, Aadhaar linked Bank Passbook",
-                "application_deadline": datetime.utcnow() + timedelta(days=25),
+                "application_deadline": utc_now() + timedelta(days=25),
                 "official_url": "https://ssp.postmatric.karnataka.gov.in",
             },
             {
@@ -242,7 +242,7 @@ def seed_database():
                 "disability_required": False,
                 "financial_benefits": "₹50,000 per annum towards college fee, computer equipment, and books",
                 "required_documents": "Class 10 & 12 marksheets, Family Income Certificate, AICTE Institute Bonafide Certificate",
-                "application_deadline": datetime.utcnow() + timedelta(days=40),
+                "application_deadline": utc_now() + timedelta(days=40),
                 "official_url": "https://scholarships.gov.in",
             },
             {
@@ -259,7 +259,7 @@ def seed_database():
                 "disability_required": False,
                 "financial_benefits": "₹12,000 per annum for undergraduate years, ₹20,000 per annum at PG level",
                 "required_documents": "12th Board Scorecard, Revenue Officer Income Certificate, College Bonafide",
-                "application_deadline": datetime.utcnow() + timedelta(days=18),
+                "application_deadline": utc_now() + timedelta(days=18),
                 "official_url": "https://scholarships.gov.in",
             },
             {
@@ -276,7 +276,7 @@ def seed_database():
                 "disability_required": True,
                 "financial_benefits": "₹50,000 per annum for every year of technical study",
                 "required_documents": "Disability Certificate issued by Competent Medical Authority (UDID), Income Certificate",
-                "application_deadline": datetime.utcnow() + timedelta(days=45),
+                "application_deadline": utc_now() + timedelta(days=45),
                 "official_url": "https://www.aicte-india.org",
             },
             {
@@ -293,12 +293,12 @@ def seed_database():
                 "disability_required": False,
                 "financial_benefits": "Full tuition fee, hostel mess allowance, and textbook allowance up to graduation",
                 "required_documents": "FAEA Application Form, Marks cards, Recommendation Letter from Head of Department",
-                "application_deadline": datetime.utcnow() + timedelta(days=60),
+                "application_deadline": utc_now() + timedelta(days=60),
                 "official_url": "https://www.faeaindia.org",
             },
         ]
         for s in scholarships_data:
-            sch = Scholarship(**s, last_verified_date=datetime.utcnow(), is_active=True)
+            sch = Scholarship(**s, last_verified_date=utc_now(), is_active=True)
             db.add(sch)
 
         print("[Seed] Seeding institutional knowledge base...")
@@ -374,7 +374,7 @@ def seed_database():
             db.add(item)
 
         print("[Seed] Seeding sample complaints with realistic timelines and escalations...")
-        now = datetime.utcnow()
+        now = utc_now()
 
         # Complaint 1: Active Tier 1 complaint for student (Ananya)
         comp1 = Complaint(

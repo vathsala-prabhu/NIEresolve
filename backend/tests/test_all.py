@@ -9,7 +9,7 @@ if BASE_DIR not in sys.path:
 
 import pytest
 from fastapi import HTTPException
-from backend.app.database import SessionLocal, Base, engine
+from backend.app.database import SessionLocal, Base, engine, utc_now
 from backend.app.models.user import User, UserRole, StudentProfile, FacultyProfile, Department
 from backend.app.models.complaint import (
     Complaint,
@@ -242,8 +242,8 @@ def test_escalation_15_day_matrix():
             current_tier=ComplaintTier.TIER_1,
             predicted_priority=ComplaintPriority.MEDIUM,
             final_priority=ComplaintPriority.MEDIUM,
-            submission_date=datetime.utcnow() - timedelta(days=16),
-            tier1_entered_at=datetime.utcnow() - timedelta(days=16),
+            submission_date=utc_now() - timedelta(days=16),
+            tier1_entered_at=utc_now() - timedelta(days=16),
         )
         db.add(aged_comp)
         db.commit()

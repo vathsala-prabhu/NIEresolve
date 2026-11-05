@@ -1,6 +1,11 @@
+from datetime import datetime, timezone
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 from backend.app.config import settings
+
+def utc_now() -> datetime:
+    """Returns naive UTC timestamp compliant with Python 3.13+."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 connect_args = {}
 if settings.DATABASE_URL.startswith("sqlite"):

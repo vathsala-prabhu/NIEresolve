@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
-from backend.app.database import get_db
+from backend.app.database import get_db, utc_now
 from backend.app.models.user import User, UserRole, Department
 from backend.app.models.complaint import (
     Complaint,
@@ -56,7 +56,7 @@ def format_complaint_list_item(comp: Complaint, current_user: User) -> dict:
         elif comp.complainant.faculty_profile:
             complainant_identifier = comp.complainant.faculty_profile.faculty_id
 
-    now = datetime.utcnow()
+    now = utc_now()
     days_pending = (now - comp.submission_date).days
 
     return {
@@ -402,7 +402,7 @@ def confirm_resolution(
     if comp.complainant_id != current_user.id:
         raise HTTPException(status_code=403, detail="Only the original complainant can confirm resolution.")
 
-    now = datetime.utcnow()
+    now = utc_now()
     comp.student_confirmed = payload.confirmed
     comp.student_confirmation_remarks = payload.remarks
     comp.student_confirmed_at = now

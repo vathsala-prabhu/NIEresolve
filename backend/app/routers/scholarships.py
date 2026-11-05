@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from backend.app.database import get_db
+from backend.app.database import get_db, utc_now
 from backend.app.models.user import User, UserRole, StudentProfile
 from backend.app.models.scholarship import Scholarship
 from backend.app.schemas.scholarship import (
@@ -89,7 +89,7 @@ def add_scholarship(
         application_open_date=sch.application_open_date,
         application_deadline=sch.application_deadline,
         official_url=sch.official_url,
-        last_verified_date=datetime.utcnow(),
+        last_verified_date=utc_now(),
         is_active=True,
     )
     db.add(new_sch)

@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class StudentLoginRequest(BaseModel):
     usn: str = Field(..., description="University Seat Number (e.g. 4NI21CS045)")
@@ -35,6 +35,5 @@ class UserResponse(BaseModel):
     is_active: bool
     identifier: Optional[str] = None # USN or Faculty ID
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 

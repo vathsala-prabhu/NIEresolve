@@ -4,7 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 
-from backend.app.database import get_db
+from backend.app.database import get_db, utc_now
 from backend.app.models.user import User, UserRole
 from backend.app.models.complaint import Complaint, ComplaintEvidence, ComplaintTimeline
 from backend.app.schemas.complaint import EvidenceVerifyRequest, EvidenceResponse
@@ -54,7 +54,7 @@ async def upload_evidence(
     # Ensure upload directory exists
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
-    unique_filename = f"{uuid.uuid4().hex}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}{ext}"
+    unique_filename = f"{uuid.uuid4().hex}_{utc_now().strftime('%Y%m%d%H%M%S')}{ext}"
     dest_path = os.path.join(settings.UPLOAD_DIR, unique_filename)
 
     file_size = 0
@@ -81,7 +81,7 @@ async def upload_evidence(
         file_size_bytes=file_size,
         verification_status="pending_verification",
         is_confidential=is_confidential,
-        created_at=datetime.utcnow(),
+        created_at=utc_now(),
     )
     db.add(evidence)
 
@@ -93,7 +93,7 @@ async def upload_evidence(
         remarks=f"Uploaded '{file.filename}' ({round(file_size / 1024, 1)} KB). Pending officer verification.",
         from_status=comp.status,
         to_status=comp.status,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
     ))
 
     db.commit()
@@ -124,7 +124,7 @@ def verify_evidence(
     if not evidence:
         raise HTTPException(status_code=404, detail="Evidence item not found")
 
-    now = datetime.utcnow()
+    now = utc_now()
     evidence.verification_status = payload.status
     evidence.officer_remarks = payload.officer_remarks
     evidence.verified_by_id = current_user.id

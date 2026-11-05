@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from backend.app.database import Base
+from backend.app.database import Base, utc_now
 
 class EscalationLog(Base):
     __tablename__ = "escalation_logs"
@@ -10,11 +10,11 @@ class EscalationLog(Base):
     complaint_id = Column(Integer, ForeignKey("complaints.id", ondelete="CASCADE"), nullable=False)
     from_tier = Column(String(50), nullable=False)
     to_tier = Column(String(50), nullable=False)
-    escalation_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    escalation_date = Column(DateTime, default=utc_now, nullable=False)
     reason = Column(Text, nullable=False) # e.g. "Automatic escalation: Unresolved after 15 calendar days at Tier 1"
     automated = Column(Boolean, default=True)
     notified_authorities = Column(Text, nullable=True) # Summary of who was notified
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     complaint = relationship("Complaint", back_populates="escalation_logs")
 
@@ -26,5 +26,5 @@ class EscalationConfig(Base):
     duration_days = Column(Integer, default=15, nullable=False)
     description = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 

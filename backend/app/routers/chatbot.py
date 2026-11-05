@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException, status
 from sqlalchemy.orm import Session
 
-from backend.app.database import get_db, SessionLocal
+from backend.app.database import get_db, SessionLocal, utc_now
 from backend.app.models.user import User
 from backend.app.models.chatbot import KnowledgeBaseItem, ChatSession, ChatMessage
 from backend.app.schemas.chatbot import (
@@ -78,7 +78,7 @@ def query_chatbot(
         sources=result["sources"],
         is_live_data=result["is_live_data"],
         context_type=result.get("context_type"),
-        created_at=datetime.utcnow(),
+        created_at=utc_now(),
     )
 
 @router.websocket("/ws")
@@ -118,7 +118,7 @@ async def websocket_chatbot(websocket: WebSocket):
                 "sources": result["sources"],
                 "is_live_data": result["is_live_data"],
                 "context_type": result.get("context_type"),
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": utc_now().isoformat(),
             })
     except WebSocketDisconnect:
         pass

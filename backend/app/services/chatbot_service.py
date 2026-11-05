@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from backend.app.database import utc_now
 
 from backend.app.models.chatbot import KnowledgeBaseItem, ChatSession, ChatMessage
 from backend.app.models.complaint import Complaint, ComplaintStatus, ComplaintTier
@@ -46,7 +47,7 @@ class ChatbotService:
                         or current_user.role in [UserRole.DEPT_OFFICER, UserRole.GRIEVANCE_CELL, UserRole.PRINCIPAL, UserRole.SUPER_ADMIN]
                     )
                     if is_authorized:
-                        days_pending = (datetime.utcnow() - comp.submission_date).days
+                        days_pending = (utc_now() - comp.submission_date).days
                         tier_labels = {"tier_1": "Tier 1 (Department Level)", "tier_2": "Tier 2 (Grievance Cell)", "tier_3": "Tier 3 (Principal / Higher Authority)"}
                         
                         resp = (
@@ -98,7 +99,7 @@ class ChatbotService:
 
                 resp_lines = [f"**Your Recent Grievances ({len(user_complaints)}):**\n"]
                 for c in user_complaints:
-                    days = (datetime.utcnow() - c.submission_date).days
+                    days = (utc_now() - c.submission_date).days
                     tier_str = c.current_tier.replace('_', ' ').upper()
                     resp_lines.append(
                         f"1. **{c.grievance_id}**: *{c.title}*\n"

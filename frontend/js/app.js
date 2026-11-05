@@ -1638,7 +1638,7 @@ function ComplaintDetailPage({ complaintId, currentUser, onBack, addToast }) {
                                         ) : (
                                             <div className="h-28 flex items-center justify-center bg-white rounded border border-slate-200">
                                                 <a href={ev.file_url} target="_blank" className="text-nie-navy hover:underline text-xs font-semibold">
-                                                    Download Document ({round(ev.file_size_bytes / 1024, 1)} KB)
+                                                    Download Document ({Math.round(ev.file_size_bytes / 1024)} KB)
                                                 </a>
                                             </div>
                                         )}

@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
+from backend.app.database import utc_now
 
 from backend.app.models.complaint import (
     Complaint,
@@ -21,7 +22,7 @@ from backend.app.config import settings
 
 def generate_grievance_id(db: Session) -> str:
     """Generates unique institutional grievance ID format: NIE-YYYY-XXXX"""
-    current_year = datetime.utcnow().year
+    current_year = utc_now().year
     prefix = f"NIE-{current_year}-"
     last_complaint = (
         db.query(Complaint)
@@ -66,7 +67,7 @@ class ComplaintService:
         # ML Priority Prediction & Safety Guardrail
         pred = priority_predictor.predict(category, title, description)
 
-        now = datetime.utcnow()
+        now = utc_now()
         expected_deadline = now + timedelta(days=settings.TIER1_ESCALATION_DAYS)
 
         complaint = Complaint(
@@ -186,7 +187,7 @@ class ComplaintService:
         if not master or not duplicate:
             raise HTTPException(status_code=404, detail="Master or duplicate complaint not found.")
 
-        now = datetime.utcnow()
+        now = utc_now()
         duplicate.is_duplicate = True
         duplicate.master_complaint_id = master.id
         duplicate.status = master.status # Synchronize status
@@ -254,7 +255,7 @@ class ComplaintService:
         complaint.final_priority = new_priority
         complaint.priority_override_reason = f"Manual override by {actor.full_name} ({actor.role}): {reason}"
 
-        now = datetime.utcnow()
+        now = utc_now()
         db.add(ComplaintTimeline(
             complaint_id=complaint.id,
             action="Priority Overridden",
@@ -301,7 +302,7 @@ class ComplaintService:
             raise HTTPException(status_code=404, detail="Complaint not found")
 
         old_status = complaint.status
-        now = datetime.utcnow()
+        now = utc_now()
 
         complaint.status = new_status
         if assigned_to_id:

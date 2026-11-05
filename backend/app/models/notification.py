@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from backend.app.database import Base
+from backend.app.database import Base, utc_now
 
 class NotificationType:
     SUBMISSION = "submission"
@@ -27,7 +27,7 @@ class Notification(Base):
     message = Column(Text, nullable=False)
     notification_type = Column(String(50), default=NotificationType.GENERAL, index=True)
     is_read = Column(Boolean, default=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
 
     user = relationship("User", back_populates="notifications")
     complaint = relationship("Complaint")

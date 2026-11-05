@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from backend.app.database import get_db
+from backend.app.database import get_db, utc_now
 from backend.app.models.complaint import Complaint, ComplaintStatus, ComplaintTier
 from backend.app.models.user import Department
 from backend.app.models.escalation import EscalationConfig, EscalationLog
@@ -26,7 +26,7 @@ def get_escalation_dashboard(
     - Department-wise escalation breakdown
     - Average resolution time
     """
-    now = datetime.utcnow()
+    now = utc_now()
 
     # Active complaints
     active_complaints = (
@@ -136,7 +136,7 @@ def update_escalation_config(
         db.add(cfg)
     else:
         cfg.duration_days = duration_days
-        cfg.updated_at = datetime.utcnow()
+        cfg.updated_at = utc_now()
     db.commit()
     return {"message": f"Updated {tier_name} deadline to {duration_days} days."}
 

@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
+from backend.app.database import utc_now
 from backend.app.models.scholarship import Scholarship, ScholarshipRecommendation
 from backend.app.models.user import StudentProfile
 
@@ -77,7 +78,7 @@ class ScholarshipService:
             status = "Not Eligible"
 
         # Days until deadline
-        now = datetime.utcnow()
+        now = utc_now()
         days_left = max(0, (scholarship.application_deadline - now).days)
 
         return {

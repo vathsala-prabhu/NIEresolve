@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class ComplaintCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=200)
@@ -26,8 +26,7 @@ class EvidenceResponse(BaseModel):
     is_confidential: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class TimelineResponse(BaseModel):
     id: int
@@ -38,8 +37,7 @@ class TimelineResponse(BaseModel):
     to_status: Optional[str] = None
     timestamp: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ComplaintLocationResponse(BaseModel):
     latitude: Optional[float] = None
@@ -49,8 +47,7 @@ class ComplaintLocationResponse(BaseModel):
     is_exception_granted: bool = False
     exception_reason: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ComplaintListResponse(BaseModel):
     id: int
@@ -77,8 +74,7 @@ class ComplaintListResponse(BaseModel):
     resolution_date: Optional[datetime] = None
     student_confirmed: Optional[bool] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ComplaintDetailResponse(ComplaintListResponse):
     description: str
@@ -99,8 +95,7 @@ class ComplaintDetailResponse(ComplaintListResponse):
     timeline_entries: List[TimelineResponse] = []
     duplicates_list: List[ComplaintListResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class EvidenceVerifyRequest(BaseModel):
     evidence_id: int

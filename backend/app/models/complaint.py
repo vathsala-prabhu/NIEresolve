@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float, Text
 from sqlalchemy.orm import relationship, backref
-from backend.app.database import Base
+from backend.app.database import Base, utc_now
 
 class ComplaintStatus:
     SUBMITTED = "submitted"
@@ -73,9 +73,9 @@ class Complaint(Base):
     affected_students_count = Column(Integer, default=1)
     
     # Dates & Escalation Tracking
-    submission_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    submission_date = Column(DateTime, default=utc_now, nullable=False)
     expected_deadline = Column(DateTime, nullable=True)
-    tier1_entered_at = Column(DateTime, default=datetime.utcnow)
+    tier1_entered_at = Column(DateTime, default=utc_now)
     tier2_entered_at = Column(DateTime, nullable=True)
     tier3_entered_at = Column(DateTime, nullable=True)
     is_escalation_paused = Column(Boolean, default=False)
@@ -89,8 +89,8 @@ class Complaint(Base):
     student_confirmation_remarks = Column(Text, nullable=True)
     student_confirmed_at = Column(DateTime, nullable=True)
     
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     department = relationship("Department", back_populates="complaints")
@@ -118,7 +118,7 @@ class ComplaintEvidence(Base):
     verified_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     verified_at = Column(DateTime, nullable=True)
     is_confidential = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     complaint = relationship("Complaint", back_populates="evidence_items")
     verified_by = relationship("User", foreign_keys=[verified_by_id])
@@ -131,7 +131,7 @@ class ComplaintLocation(Base):
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     accuracy_meters = Column(Float, nullable=True)
-    captured_at = Column(DateTime, default=datetime.utcnow)
+    captured_at = Column(DateTime, default=utc_now)
     is_exception_granted = Column(Boolean, default=False)
     exception_reason = Column(String(255), nullable=True)
 
@@ -147,7 +147,7 @@ class ComplaintTimeline(Base):
     remarks = Column(Text, nullable=True)
     from_status = Column(String(50), nullable=True)
     to_status = Column(String(50), nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=utc_now)
 
     complaint = relationship("Complaint", back_populates="timeline_entries")
     actor = relationship("User", foreign_keys=[actor_id])

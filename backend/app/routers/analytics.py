@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from backend.app.database import get_db
+from backend.app.database import get_db, utc_now
 from backend.app.models.complaint import Complaint, ComplaintStatus, ComplaintTier, ComplaintPriority
 from backend.app.models.user import Department, User, UserRole
 from backend.app.schemas.analytics import AnalyticsDashboardResponse, OverviewStats, KeyValueStat, DepartmentEscalationStat, TrendStat
@@ -28,7 +28,7 @@ def get_analytics_overview(
     - Department escalation status
     - Monthly trends
     """
-    now = datetime.utcnow()
+    now = utc_now()
     all_complaints = db.query(Complaint).all()
     total = len(all_complaints)
 

@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float, Text
 from sqlalchemy.orm import relationship
-from backend.app.database import Base
+from backend.app.database import Base, utc_now
 
 class Scholarship(Base):
     __tablename__ = "scholarships"
@@ -27,9 +27,9 @@ class Scholarship(Base):
     application_open_date = Column(DateTime, nullable=True)
     application_deadline = Column(DateTime, nullable=False)
     official_url = Column(String(500), nullable=False)
-    last_verified_date = Column(DateTime, default=datetime.utcnow)
+    last_verified_date = Column(DateTime, default=utc_now)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     recommendations = relationship("ScholarshipRecommendation", back_populates="scholarship", cascade="all, delete-orphan")
 
@@ -43,7 +43,7 @@ class ScholarshipRecommendation(Base):
     match_score = Column(Float, default=100.0) # 0 to 100%
     match_reasons = Column(Text, nullable=True) # JSON or formatted string
     missing_criteria = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     student = relationship("StudentProfile", back_populates="scholarship_recommendations")
     scholarship = relationship("Scholarship", back_populates="recommendations")

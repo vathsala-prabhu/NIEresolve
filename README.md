@@ -217,3 +217,4 @@ python -m pytest backend/tests/test_all.py -v
 ## 📜 License & Accreditation
 Designed and developed for **The National Institute of Engineering (NIE), Mysuru**.  
 *Every Concern Deserves a Response.*
+

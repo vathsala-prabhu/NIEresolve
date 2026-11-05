@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+from backend.app.database import utc_now
 
 from backend.app.models.complaint import (
     Complaint,
@@ -35,7 +36,7 @@ class EscalationService:
         Automatically escalates complaints that have exceeded their 15-day window without resolution.
         Sends escalation warnings for complaints within 3 days of deadline.
         """
-        now = datetime.utcnow()
+        now = utc_now()
         escalated_tier2 = []
         escalated_tier3 = []
         warnings_sent = []
@@ -194,7 +195,7 @@ class EscalationService:
         comp.is_escalation_paused = paused
         comp.escalation_pause_reason = reason if paused else None
 
-        now = datetime.utcnow()
+        now = utc_now()
         action_name = "Escalation Paused" if paused else "Escalation Resumed"
         db.add(ComplaintTimeline(
             complaint_id=comp.id,
