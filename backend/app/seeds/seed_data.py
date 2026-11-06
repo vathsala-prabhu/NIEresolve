@@ -37,7 +37,7 @@ from backend.app.models.announcement import InstitutionalAnnouncement
 from backend.app.auth.security import hash_password
 
 def seed_scholarship_module(db: Session):
-    """Safely provisions the scholarship coordinator, announcements, and application schedules."""
+    """Safely provisions the scholarship coordinator, verified NSP schemes, announcements, and application schedules."""
     now = utc_now()
 
     # 1. Scholarship Coordinator User
@@ -55,6 +55,110 @@ def seed_scholarship_module(db: Session):
         )
         db.add(coord)
         db.flush()
+
+    # 1.1 Ensure Exactly the 5 Verified NSP Schemes Exist and Are Active
+    verified_schemes = [
+        {
+            "name": "AICTE Pragati Scholarship Scheme for Girl Students (Technical Degree)",
+            "provider": "All India Council for Technical Education (AICTE), Ministry of Education",
+            "description": "Dedicated government scheme to provide financial assistance to meritorious girl students admitted to AICTE approved technical degree courses to empower women in STEM. Up to two girl children per family are eligible.",
+            "eligible_categories": "All",
+            "min_cgpa": 0.0,
+            "max_family_income": 800000.0,
+            "eligible_courses": "Technical Degree (Undergraduate B.E. / B.Tech)",
+            "eligible_branches": "All",
+            "eligible_genders": "Female",
+            "eligible_domiciles": "All-India",
+            "disability_required": False,
+            "financial_benefits": "₹50,000 per annum towards college fee, computer equipment, and books (max 2 girls per family)",
+            "required_documents": "Class 10 & 12 marksheets, Family Income Certificate, AICTE Institute Bonafide Certificate",
+            "application_deadline": now + timedelta(days=60),
+            "official_url": "https://scholarships.gov.in/public/schemeGuidelines/AICTE/AICTE_2010_G.pdf",
+        },
+        {
+            "name": "AICTE Saksham Scholarship Scheme for Specially-Abled Students (Technical Degree)",
+            "provider": "All India Council for Technical Education (AICTE), Ministry of Education",
+            "description": "Financial grant of ₹50,000 per annum to encourage and assist specially-abled students with benchmark disability of not less than 40% pursuing technical degree courses.",
+            "eligible_categories": "All",
+            "min_cgpa": 0.0,
+            "max_family_income": 800000.0,
+            "eligible_courses": "Technical Degree (Undergraduate B.E. / B.Tech)",
+            "eligible_branches": "All",
+            "eligible_genders": "All",
+            "eligible_domiciles": "All-India",
+            "disability_required": True,
+            "financial_benefits": "₹50,000 per annum for every year of technical degree study",
+            "required_documents": "Disability Certificate issued by Competent Medical Authority (UDID Card), Family Income Certificate",
+            "application_deadline": now + timedelta(days=60),
+            "official_url": "https://scholarships.gov.in/public/schemeGuidelines/AICTE/AICTE_2012_G.pdf",
+        },
+        {
+            "name": "AICTE Swanath Scholarship Scheme (Technical Degree)",
+            "provider": "All India Council for Technical Education (AICTE), Ministry of Education",
+            "description": "Institutional scheme to provide financial support of ₹50,000 per annum to orphaned students, children of parents deceased due to Covid-19, or children of Armed Forces & Central Paramilitary Forces personnel martyred in action.",
+            "eligible_categories": "All",
+            "min_cgpa": 0.0,
+            "max_family_income": 800000.0,
+            "eligible_courses": "Technical Degree (Undergraduate B.E. / B.Tech)",
+            "eligible_branches": "All",
+            "eligible_genders": "All",
+            "eligible_domiciles": "All-India",
+            "disability_required": False,
+            "financial_benefits": "₹50,000 per annum towards tuition fee and educational maintenance",
+            "required_documents": "Death Certificate of parents / Martyr Certificate from Competent Authority, Family Income Certificate, Institute Bonafide",
+            "application_deadline": now + timedelta(days=60),
+            "official_url": "https://scholarships.gov.in/public/schemeGuidelines/AICTE/AICTE_3039_G.pdf",
+        },
+        {
+            "name": "PM YASASVI Central Sector Scheme of Top Class Education in College for OBC, EBC and DNT Students",
+            "provider": "Ministry of Social Justice and Empowerment, Govt of India",
+            "description": "Central sector scholarship to recognize and promote quality higher education among OBC, EBC, and DNT students studying in notified higher education institutions.",
+            "eligible_categories": "OBC, EBC, DNT",
+            "min_cgpa": 0.0,
+            "max_family_income": 250000.0,
+            "eligible_courses": "College / University Undergraduate Degree",
+            "eligible_branches": "All",
+            "eligible_genders": "All",
+            "eligible_domiciles": "All-India",
+            "disability_required": False,
+            "financial_benefits": "Full tuition fee and non-refundable charges up to prescribed ceiling + living and books allowance",
+            "required_documents": "Caste / Category Certificate (OBC/EBC/DNT), Valid Income Certificate from Competent Revenue Authority, Institute Fee Receipt",
+            "application_deadline": now + timedelta(days=60),
+            "official_url": "https://scholarships.gov.in/All-Scholarships",
+        },
+        {
+            "name": "PM-USP Central Sector Scheme of Scholarship for College and University Students (CSSS)",
+            "provider": "Department of Higher Education, Ministry of Education, Govt of India",
+            "description": "Merit-cum-means scholarship providing ₹12,000 per annum at undergraduate level to meritorious students scoring above the 80th percentile in Class XII board exams pursuing regular degree courses.",
+            "eligible_categories": "All",
+            "min_cgpa": 0.0,
+            "max_family_income": 450000.0,
+            "eligible_courses": "College and University Undergraduate Degree",
+            "eligible_branches": "All",
+            "eligible_genders": "All",
+            "eligible_domiciles": "All-India",
+            "disability_required": False,
+            "financial_benefits": "₹12,000 per annum for undergraduate years, ₹20,000 per annum at post-graduation level",
+            "required_documents": "Class 12 Board Scorecard / Percentile Verification, Revenue Authority Income Certificate, College Bonafide",
+            "application_deadline": now + timedelta(days=60),
+            "official_url": "https://scholarships.gov.in/public/schemeGuidelines/CSSS_GUIDLINES_07022024_updated.pdf",
+        },
+    ]
+
+    verified_names = [s["name"] for s in verified_schemes]
+    # Deactivate or remove any old unverified scholarships
+    db.query(Scholarship).filter(Scholarship.name.notin_(verified_names)).update({"is_active": False}, synchronize_session=False)
+
+    for s in verified_schemes:
+        existing = db.query(Scholarship).filter(Scholarship.name == s["name"]).first()
+        if existing:
+            for k, v in s.items():
+                setattr(existing, k, v)
+            existing.is_active = True
+            existing.last_verified_date = now
+        else:
+            db.add(Scholarship(**s, last_verified_date=now, is_active=True))
+    db.commit()
 
     # 2. Scholarship Announcements
     if db.query(ScholarshipAnnouncement).count() == 0:
@@ -424,92 +528,92 @@ def seed_database():
         db.add(EscalationConfig(tier_name=ComplaintTier.TIER_1, duration_days=15, description="Department Level Grievance Resolution"))
         db.add(EscalationConfig(tier_name=ComplaintTier.TIER_2, duration_days=15, description="Institutional Grievance Redressal Cell Review"))
 
-        print("[Seed] Seeding genuine scholarships...")
+        print("[Seed] Seeding genuine verified NSP scholarships...")
         scholarships_data = [
             {
-                "name": "State Scholarship Portal (SSP) - Post-Matric Scholarship",
-                "provider": "Government of Karnataka (Social Welfare / Backward Classes)",
-                "description": "Comprehensive fee concession and maintenance allowance for eligible Karnataka domicile students pursuing professional technical courses.",
-                "eligible_categories": "SC, ST, OBC, Cat-1, 2A, 2B, 3A, 3B",
-                "min_cgpa": 0.0,
-                "max_family_income": 250000.0,
-                "eligible_courses": "B.Tech, M.Tech, MCA",
-                "eligible_branches": "All",
-                "eligible_genders": "All",
-                "eligible_domiciles": "Karnataka",
-                "disability_required": False,
-                "financial_benefits": "Full tuition fee reimbursement + ₹1,000 monthly maintenance stipend",
-                "required_documents": "Caste & Income Certificate (RD Number), SSLC Marksheet, College Admission Receipt, Aadhaar linked Bank Passbook",
-                "application_deadline": utc_now() + timedelta(days=25),
-                "official_url": "https://ssp.postmatric.karnataka.gov.in",
-            },
-            {
-                "name": "AICTE Pragati Scholarship Scheme for Girls",
-                "provider": "All India Council for Technical Education (AICTE)",
-                "description": "Financial assistance to meritorious girl students admitted to AICTE approved technical degree institutions to empower women in STEM.",
+                "name": "AICTE Pragati Scholarship Scheme for Girl Students (Technical Degree)",
+                "provider": "All India Council for Technical Education (AICTE), Ministry of Education",
+                "description": "Dedicated government scheme to provide financial assistance to meritorious girl students admitted to AICTE approved technical degree courses to empower women in STEM. Up to two girl children per family are eligible.",
                 "eligible_categories": "All",
-                "min_cgpa": 7.0,
+                "min_cgpa": 0.0,
                 "max_family_income": 800000.0,
-                "eligible_courses": "B.Tech",
+                "eligible_courses": "Technical Degree (Undergraduate B.E. / B.Tech)",
                 "eligible_branches": "All",
                 "eligible_genders": "Female",
                 "eligible_domiciles": "All-India",
                 "disability_required": False,
-                "financial_benefits": "₹50,000 per annum towards college fee, computer equipment, and books",
+                "financial_benefits": "₹50,000 per annum towards college fee, computer equipment, and books (max 2 girls per family)",
                 "required_documents": "Class 10 & 12 marksheets, Family Income Certificate, AICTE Institute Bonafide Certificate",
-                "application_deadline": utc_now() + timedelta(days=40),
-                "official_url": "https://scholarships.gov.in",
+                "application_deadline": utc_now() + timedelta(days=60),
+                "official_url": "https://scholarships.gov.in/public/schemeGuidelines/AICTE/AICTE_2010_G.pdf",
             },
             {
-                "name": "Central Sector Scheme of Scholarship (CSSS)",
-                "provider": "Department of Higher Education, Ministry of Education, Govt of India",
-                "description": "Scholarships for top percentile students in Class XII board exams pursuing regular university undergraduate engineering programs.",
-                "eligible_categories": "All",
-                "min_cgpa": 7.5,
-                "max_family_income": 450000.0,
-                "eligible_courses": "B.Tech",
-                "eligible_branches": "All",
-                "eligible_genders": "All",
-                "eligible_domiciles": "All-India",
-                "disability_required": False,
-                "financial_benefits": "₹12,000 per annum for undergraduate years, ₹20,000 per annum at PG level",
-                "required_documents": "12th Board Scorecard, Revenue Officer Income Certificate, College Bonafide",
-                "application_deadline": utc_now() + timedelta(days=18),
-                "official_url": "https://scholarships.gov.in",
-            },
-            {
-                "name": "AICTE Saksham Scholarship Scheme for Specially-Abled Students",
-                "provider": "AICTE",
-                "description": "Financial grant for specially-abled students with disability not less than 40% pursuing technical degree degrees.",
+                "name": "AICTE Saksham Scholarship Scheme for Specially-Abled Students (Technical Degree)",
+                "provider": "All India Council for Technical Education (AICTE), Ministry of Education",
+                "description": "Financial grant of ₹50,000 per annum to encourage and assist specially-abled students with benchmark disability of not less than 40% pursuing technical degree courses.",
                 "eligible_categories": "All",
                 "min_cgpa": 0.0,
                 "max_family_income": 800000.0,
-                "eligible_courses": "B.Tech",
+                "eligible_courses": "Technical Degree (Undergraduate B.E. / B.Tech)",
                 "eligible_branches": "All",
                 "eligible_genders": "All",
                 "eligible_domiciles": "All-India",
                 "disability_required": True,
-                "financial_benefits": "₹50,000 per annum for every year of technical study",
-                "required_documents": "Disability Certificate issued by Competent Medical Authority (UDID), Income Certificate",
-                "application_deadline": utc_now() + timedelta(days=45),
-                "official_url": "https://www.aicte-india.org",
+                "financial_benefits": "₹50,000 per annum for every year of technical degree study",
+                "required_documents": "Disability Certificate issued by Competent Medical Authority (UDID Card), Family Income Certificate",
+                "application_deadline": utc_now() + timedelta(days=60),
+                "official_url": "https://scholarships.gov.in/public/schemeGuidelines/AICTE/AICTE_2012_G.pdf",
             },
             {
-                "name": "Foundation for Academic Excellence and Access (FAEA) Scholarship",
-                "provider": "BHEL & TATA Trusts / FAEA India",
-                "description": "Grants to socially and economically disadvantaged students with outstanding academic ambition in engineering.",
-                "eligible_categories": "SC, ST, BPL",
-                "min_cgpa": 8.0,
-                "max_family_income": 300000.0,
-                "eligible_courses": "B.Tech",
+                "name": "AICTE Swanath Scholarship Scheme (Technical Degree)",
+                "provider": "All India Council for Technical Education (AICTE), Ministry of Education",
+                "description": "Institutional scheme to provide financial support of ₹50,000 per annum to orphaned students, children of parents deceased due to Covid-19, or children of Armed Forces & Central Paramilitary Forces personnel martyred in action.",
+                "eligible_categories": "All",
+                "min_cgpa": 0.0,
+                "max_family_income": 800000.0,
+                "eligible_courses": "Technical Degree (Undergraduate B.E. / B.Tech)",
                 "eligible_branches": "All",
                 "eligible_genders": "All",
                 "eligible_domiciles": "All-India",
                 "disability_required": False,
-                "financial_benefits": "Full tuition fee, hostel mess allowance, and textbook allowance up to graduation",
-                "required_documents": "FAEA Application Form, Marks cards, Recommendation Letter from Head of Department",
+                "financial_benefits": "₹50,000 per annum towards tuition fee and educational maintenance",
+                "required_documents": "Death Certificate of parents / Martyr Certificate from Competent Authority, Family Income Certificate, Institute Bonafide",
                 "application_deadline": utc_now() + timedelta(days=60),
-                "official_url": "https://www.faeaindia.org",
+                "official_url": "https://scholarships.gov.in/public/schemeGuidelines/AICTE/AICTE_3039_G.pdf",
+            },
+            {
+                "name": "PM YASASVI Central Sector Scheme of Top Class Education in College for OBC, EBC and DNT Students",
+                "provider": "Ministry of Social Justice and Empowerment, Govt of India",
+                "description": "Central sector scholarship to recognize and promote quality higher education among OBC, EBC, and DNT students studying in notified higher education institutions.",
+                "eligible_categories": "OBC, EBC, DNT",
+                "min_cgpa": 0.0,
+                "max_family_income": 250000.0,
+                "eligible_courses": "College / University Undergraduate Degree",
+                "eligible_branches": "All",
+                "eligible_genders": "All",
+                "eligible_domiciles": "All-India",
+                "disability_required": False,
+                "financial_benefits": "Full tuition fee and non-refundable charges up to prescribed ceiling + living and books allowance",
+                "required_documents": "Caste / Category Certificate (OBC/EBC/DNT), Valid Income Certificate from Competent Revenue Authority, Institute Fee Receipt",
+                "application_deadline": utc_now() + timedelta(days=60),
+                "official_url": "https://scholarships.gov.in/All-Scholarships",
+            },
+            {
+                "name": "PM-USP Central Sector Scheme of Scholarship for College and University Students (CSSS)",
+                "provider": "Department of Higher Education, Ministry of Education, Govt of India",
+                "description": "Merit-cum-means scholarship providing ₹12,000 per annum at undergraduate level to meritorious students scoring above the 80th percentile in Class XII board exams pursuing regular degree courses.",
+                "eligible_categories": "All",
+                "min_cgpa": 0.0,
+                "max_family_income": 450000.0,
+                "eligible_courses": "College and University Undergraduate Degree",
+                "eligible_branches": "All",
+                "eligible_genders": "All",
+                "eligible_domiciles": "All-India",
+                "disability_required": False,
+                "financial_benefits": "₹12,000 per annum for undergraduate years, ₹20,000 per annum at post-graduation level",
+                "required_documents": "Class 12 Board Scorecard / Percentile Verification, Revenue Authority Income Certificate, College Bonafide",
+                "application_deadline": utc_now() + timedelta(days=60),
+                "official_url": "https://scholarships.gov.in/public/schemeGuidelines/CSSS_GUIDLINES_07022024_updated.pdf",
             },
         ]
         for s in scholarships_data:

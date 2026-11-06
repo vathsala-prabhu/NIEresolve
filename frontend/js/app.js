@@ -3252,16 +3252,88 @@ function CommunityGrievancesView({ currentUser, onSelectComplaint, addToast }) {
 }
 
 // ----------------------------------------------------------------------
-// SCHOLARSHIP RECOMMENDATION PORTAL
+// VERIFIED NATIONAL SCHOLARSHIP PORTAL (NSP) SCHEMES
+// ----------------------------------------------------------------------
+const VERIFIED_NSP_SCHEMES = [
+    {
+        id: "nsp-pragati",
+        name: "AICTE Pragati Scholarship Scheme for Girl Students (Technical Degree)",
+        provider: "All India Council for Technical Education (AICTE), Ministry of Education",
+        target_group: "Girl Students",
+        description: "Dedicated government scheme to provide financial encouragement to meritorious girl students pursuing technical degree education. Up to two girl children per family are eligible.",
+        eligibility: "Meritorious girl students admitted to 1st year B.E./B.Tech (or 2nd year lateral entry) in AICTE-approved institutions through centralized admission process.",
+        course_level: "Technical Degree (Undergraduate B.E. / B.Tech)",
+        income_limit: "₹8,00,000 per annum (from official guidelines)",
+        deadline_text: "Check current availability on NSP",
+        guidelines_url: "https://scholarships.gov.in/public/schemeGuidelines/AICTE/AICTE_2010_G.pdf",
+        apply_url: "https://scholarships.gov.in/Students",
+    },
+    {
+        id: "nsp-saksham",
+        name: "AICTE Saksham Scholarship Scheme for Specially-Abled Students (Technical Degree)",
+        provider: "All India Council for Technical Education (AICTE), Ministry of Education",
+        target_group: "Specially-Abled Students",
+        description: "Financial grant of ₹50,000 per annum to encourage and support specially-abled students with benchmark disability of not less than 40% pursuing technical degree courses.",
+        eligibility: "Specially-abled students having benchmark disability ≥ 40% (possessing valid UDID card) admitted to AICTE approved technical degree courses.",
+        course_level: "Technical Degree (Undergraduate B.E. / B.Tech)",
+        income_limit: "₹8,00,000 per annum (from official guidelines)",
+        deadline_text: "Check current availability on NSP",
+        guidelines_url: "https://scholarships.gov.in/public/schemeGuidelines/AICTE/AICTE_2012_G.pdf",
+        apply_url: "https://scholarships.gov.in/Students",
+    },
+    {
+        id: "nsp-swanath",
+        name: "AICTE Swanath Scholarship Scheme (Technical Degree)",
+        provider: "All India Council for Technical Education (AICTE), Ministry of Education",
+        target_group: "Eligible Swanath Applicants",
+        description: "Institutional scheme to provide financial support of ₹50,000 per annum to orphaned students, children of parents deceased due to Covid-19, or children of Armed Forces & Central Paramilitary Forces personnel martyred in action.",
+        eligibility: "Orphans, students whose both parents died due to Covid-19, or children of Armed Forces / CAPF personnel martyred in action admitted to AICTE approved degree programs.",
+        course_level: "Technical Degree (Undergraduate B.E. / B.Tech)",
+        income_limit: "₹8,00,000 per annum (from official guidelines)",
+        deadline_text: "Check current availability on NSP",
+        guidelines_url: "https://scholarships.gov.in/public/schemeGuidelines/AICTE/AICTE_3039_G.pdf",
+        apply_url: "https://scholarships.gov.in/Students",
+    },
+    {
+        id: "nsp-yasasvi",
+        name: "PM YASASVI Central Sector Scheme of Top Class Education in College for OBC, EBC and DNT Students",
+        provider: "Ministry of Social Justice and Empowerment, Govt of India",
+        target_group: "OBC / EBC / DNT Applicants",
+        description: "Central sector scholarship to recognize and promote quality higher education among OBC, EBC, and DNT students studying in notified higher education institutions beyond Class 12.",
+        eligibility: "Students belonging to Other Backward Classes (OBC), Economically Backward Classes (EBC), or De-notified Tribes (DNT) pursuing studies in notified institutions.",
+        course_level: "College / University Undergraduate Degree",
+        income_limit: "₹2,50,000 per annum (from official NSP listing)",
+        deadline_text: "Check current availability on NSP",
+        guidelines_url: "https://scholarships.gov.in/All-Scholarships",
+        apply_url: "https://scholarships.gov.in/Students",
+    },
+    {
+        id: "nsp-csss",
+        name: "PM-USP Central Sector Scheme of Scholarship for College and University Students (CSSS)",
+        provider: "Department of Higher Education, Ministry of Education, Govt of India",
+        target_group: "Merit-Based Applicants",
+        description: "Merit-cum-means scholarship providing ₹12,000 per annum at graduation level to meritorious students from low-income families scoring above the 80th percentile in Class XII board exams.",
+        eligibility: "Students scoring above the 80th percentile of successful candidates in the relevant stream from respective Class XII Board of Examination pursuing regular degree courses.",
+        course_level: "College and University Undergraduate Degree",
+        income_limit: "₹4,50,000 per annum (from official guidelines)",
+        deadline_text: "Check current availability on NSP",
+        guidelines_url: "https://scholarships.gov.in/public/schemeGuidelines/CSSS_GUIDLINES_07022024_updated.pdf",
+        apply_url: "https://scholarships.gov.in/Students",
+    },
+];
+
+// ----------------------------------------------------------------------
+// SCHOLARSHIP RECOMMENDATION & PORTAL COMPONENT
 // ----------------------------------------------------------------------
 function ScholarshipPortal({ currentUser, addToast }) {
-    const [activeTab, setActiveTab] = useState("announcements"); // "announcements", "timeline", "recommendations"
+    const [activeTab, setActiveTab] = useState("nsp_schemes"); // "nsp_schemes", "announcements", "timeline", "recommendations"
     const [announcements, setAnnouncements] = useState([]);
     const [applications, setApplications] = useState([]);
     const [recommendations, setRecommendations] = useState([]);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [showProfileEdit, setShowProfileEdit] = useState(false);
+    const [showProfileCard, setShowProfileCard] = useState(currentUser?.role === "scholarship_coordinator");
+    const [showProfileModal, setShowProfileModal] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showStageModal, setShowStageModal] = useState(false);
     const [selectedStage, setSelectedStage] = useState(null);
@@ -3278,6 +3350,11 @@ function ScholarshipPortal({ currentUser, addToast }) {
     const [coordFullName, setCoordFullName] = useState(currentUser?.full_name || "");
     const [coordPhone, setCoordPhone] = useState(currentUser?.phone || "");
     const [coordDept, setCoordDept] = useState(currentUser?.department_name || "Scholarship & Financial Aid Cell");
+
+    // Modal Edit Form State
+    const [editFullName, setEditFullName] = useState("");
+    const [editPhone, setEditPhone] = useState("");
+    const [savingProfile, setSavingProfile] = useState(false);
 
     // Announcement Create Form State
     const [annSchName, setAnnSchName] = useState("");
@@ -3340,9 +3417,14 @@ function ScholarshipPortal({ currentUser, addToast }) {
                         if (profData.state_of_domicile) setDomicile(profData.state_of_domicile);
                         if (profData.disability_status !== undefined) setDisability(Boolean(profData.disability_status));
                     } else {
-                        if (profData.full_name) setCoordFullName(profData.full_name);
-                        if (profData.phone) setCoordPhone(profData.phone);
-                        if (profData.department_name) setCoordDept(profData.department_name);
+                        const nameVal = profData.full_name || currentUser?.full_name || "";
+                        const phoneVal = profData.phone || currentUser?.phone || "";
+                        const deptVal = profData.department_name || "Scholarship & Financial Aid Cell";
+                        setCoordFullName(nameVal);
+                        setCoordPhone(phoneVal);
+                        setCoordDept(deptVal);
+                        setEditFullName(nameVal);
+                        setEditPhone(phoneVal);
                     }
                 }
             })
@@ -3353,6 +3435,14 @@ function ScholarshipPortal({ currentUser, addToast }) {
     useEffect(() => {
         loadAllData();
     }, []);
+
+    const openEditProfile = () => {
+        if (currentUser?.role === "scholarship_coordinator") {
+            setEditFullName(coordFullName || currentUser?.full_name || "");
+            setEditPhone(coordPhone || currentUser?.phone || "");
+        }
+        setShowProfileModal(true);
+    };
 
     const handleCreateAnnouncement = async (e) => {
         e.preventDefault();
@@ -3379,7 +3469,6 @@ function ScholarshipPortal({ currentUser, addToast }) {
             });
             addToast("Scholarship announcement published successfully to all students.", "success");
             setShowCreateModal(false);
-            // Reset form
             setAnnSchName("");
             setAnnTitle("");
             setAnnDesc("");
@@ -3455,6 +3544,7 @@ function ScholarshipPortal({ currentUser, addToast }) {
 
     const handleSaveProfile = async (e) => {
         e.preventDefault();
+        setSavingProfile(true);
         try {
             if (currentUser && currentUser.role === "student") {
                 await API.request("/api/scholarships/profile", {
@@ -3472,23 +3562,30 @@ function ScholarshipPortal({ currentUser, addToast }) {
                 });
                 addToast("Student academic and financial profile updated successfully.", "success");
             } else {
+                if (!editFullName.trim()) {
+                    addToast("Full name is required.", "error");
+                    setSavingProfile(false);
+                    return;
+                }
                 await API.request("/api/scholarships/profile", {
                     method: "POST",
                     body: JSON.stringify({
-                        full_name: coordFullName,
-                        phone: coordPhone,
+                        full_name: editFullName.trim(),
+                        phone: editPhone.trim(),
                     }),
                 });
+                setCoordFullName(editFullName.trim());
+                setCoordPhone(editPhone.trim());
                 addToast("Coordinator profile details updated successfully.", "success");
             }
-            setShowProfileEdit(false);
+            setShowProfileModal(false);
             loadAllData();
         } catch (err) {
-            addToast(err.message, "error");
+            addToast(err.message || "Failed to update profile", "error");
+        } finally {
+            setSavingProfile(false);
         }
     };
-
-    const urgentAnnouncements = announcements.filter((a) => a.is_urgent && a.status === "published");
 
     return (
         <div className="space-y-6">
@@ -3497,89 +3594,141 @@ function ScholarshipPortal({ currentUser, addToast }) {
                 <div>
                     <div className="flex items-center gap-2">
                         <span className="text-2xl">🎓</span>
-                        <h1 className="text-xl font-bold text-nie-navy">Scholarship Notification & Approval Tracking Hub</h1>
+                        <h1 className="text-xl font-bold text-nie-navy">National Scholarship Portal (NSP) & Institutional Aid Hub</h1>
                     </div>
                     <p className="text-xs text-slate-500 mt-1">
-                        Institutional announcements, physical seal & signature schedules, and multi-stage approval tracking for NIE Mysuru.
+                        Official Government of India Schemes, Eligibility Verification, and Multi-Stage Tracking for NIE Mysuru.
                     </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                    <a
+                        href="https://scholarships.gov.in/Students"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-nie-gold hover:bg-amber-600 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm transition inline-flex items-center gap-1.5"
+                    >
+                        <span>🏛️ Apply on National Scholarship Portal</span>
+                        <span>↗</span>
+                    </a>
+
                     {canPublish && (
                         <button
                             onClick={() => setShowCreateModal(true)}
-                            className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5"
+                            className="bg-nie-navy hover:bg-nie-navydark text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5"
                         >
                             <span>+ Publish Announcement</span>
                         </button>
                     )}
+
                     {currentUser && (currentUser.role === "student" || currentUser.role === "scholarship_coordinator" || currentUser.can_publish_scholarships) && (
                         <button
-                            onClick={() => setShowProfileEdit(!showProfileEdit)}
-                            className="bg-nie-navy hover:bg-nie-navydark text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition"
+                            onClick={() => setShowProfileCard(!showProfileCard)}
+                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3.5 py-2 rounded-lg transition flex items-center gap-1.5"
                         >
-                            {showProfileEdit ? "Close Profile" : (currentUser.role === "student" ? "Edit Academic Profile" : "Edit Coordinator Profile")}
+                            <span>{showProfileCard ? "Close Profile" : (currentUser.role === "student" ? "View Academic Profile" : "View Coordinator Profile")}</span>
                         </button>
                     )}
                 </div>
             </div>
 
-            {/* Overall Stats Cards */}
-            {stats && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                        <p className="text-xs text-slate-500 font-medium">Active Schemes</p>
-                        <p className="text-2xl font-bold text-nie-navy mt-1">{stats.total_scholarships}</p>
-                    </div>
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                        <p className="text-xs text-amber-600 font-medium">Published Updates</p>
-                        <p className="text-2xl font-bold text-amber-700 mt-1">{stats.published_announcements}</p>
-                    </div>
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                        <p className="text-xs text-blue-600 font-medium">Active Applications</p>
-                        <p className="text-2xl font-bold text-blue-700 mt-1">{stats.active_applications}</p>
-                    </div>
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                        <p className="text-xs text-purple-600 font-medium">Upcoming Verification Camps</p>
-                        <p className="text-2xl font-bold text-purple-700 mt-1">{stats.upcoming_appointments}</p>
-                    </div>
-                </div>
-            )}
-
-            {/* Urgent Announcements Top Alert Banner */}
-            {urgentAnnouncements.length > 0 && (
-                <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 shadow-sm">
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping"></span>
-                        <h2 className="text-xs font-bold text-rose-900 uppercase tracking-wider flex items-center gap-1.5">
-                            <span>🚨 Urgent Institutional Notice</span>
-                            <span className="text-[10px] bg-rose-200 text-rose-800 px-1.5 py-px rounded font-mono">Action Required</span>
-                        </h2>
-                    </div>
-                    <div className="space-y-2">
-                        {urgentAnnouncements.map((u) => (
-                            <div key={u.id} className="text-xs text-rose-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white/80 p-3 rounded-lg border border-rose-200">
-                                <div>
-                                    <strong className="text-rose-900">{u.scholarship_name}:</strong> {u.title}
-                                    {u.event_location && (
-                                        <div className="text-[11px] text-rose-700 mt-0.5">
-                                            📍 <strong>Venue:</strong> {u.event_location} &bull; ⏰ <strong>Time:</strong> {u.event_time_window || "During Office Hours"}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="text-right whitespace-nowrap">
-                                    <span className="bg-rose-600 text-white font-bold text-[10px] px-2 py-0.5 rounded">
-                                        Mandatory Verification
-                                    </span>
-                                </div>
+            {/* Profile Summary Card (Displayed when toggled open) */}
+            {showProfileCard && (
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-nie-navy text-white flex items-center justify-center font-bold text-base">
+                                {(coordFullName || currentUser?.full_name || "U").charAt(0)}
                             </div>
-                        ))}
+                            <div>
+                                <h2 className="text-sm font-bold text-nie-navy">
+                                    {currentUser?.role === "student" ? "Student Academic Profile" : "Scholarship Coordinator Institutional Profile"}
+                                </h2>
+                                <p className="text-xs text-slate-500">
+                                    {currentUser?.role === "student"
+                                        ? "Academic and financial records used for transparent scholarship matching"
+                                        : "Designated Institutional Nodal Officer for National Scholarship Portal (NSP)"}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={openEditProfile}
+                                className="bg-nie-navy hover:bg-nie-navydark text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1.5"
+                            >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                                <span>Edit Profile</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowProfileCard(false)}
+                                className="text-xs text-slate-500 hover:text-slate-800 font-semibold px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition"
+                            >
+                                Close Profile
+                            </button>
+                        </div>
                     </div>
+
+                    {currentUser?.role === "student" ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span className="text-[10px] text-slate-500 uppercase font-semibold">Engineering Branch</span>
+                                <p className="font-bold text-slate-800 mt-0.5">{branch}</p>
+                            </div>
+                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span className="text-[10px] text-slate-500 uppercase font-semibold">Current CGPA</span>
+                                <p className="font-bold text-slate-800 mt-0.5">{cgpa} / 10.0</p>
+                            </div>
+                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span className="text-[10px] text-slate-500 uppercase font-semibold">Annual Family Income</span>
+                                <p className="font-bold text-slate-800 mt-0.5">₹{Number(annualIncome).toLocaleString('en-IN')}</p>
+                            </div>
+                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span className="text-[10px] text-slate-500 uppercase font-semibold">Reservation Category</span>
+                                <p className="font-bold text-slate-800 mt-0.5">{category} &bull; {domicile}</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span className="text-[10px] text-slate-500 uppercase font-semibold">Full Name</span>
+                                <p className="font-bold text-slate-800 mt-0.5">{coordFullName || currentUser?.full_name}</p>
+                            </div>
+                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span className="text-[10px] text-slate-500 uppercase font-semibold">Official Phone</span>
+                                <p className="font-bold text-slate-800 mt-0.5">{coordPhone || "Not configured"}</p>
+                            </div>
+                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span className="text-[10px] text-slate-500 uppercase font-semibold">Institutional Email</span>
+                                <p className="font-bold text-slate-800 mt-0.5">{currentUser?.email}</p>
+                            </div>
+                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span className="text-[10px] text-slate-500 uppercase font-semibold">Department / Cell</span>
+                                <p className="font-bold text-slate-800 mt-0.5">{coordDept}</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
             {/* Primary Tab Navigation */}
             <div className="border-b border-slate-200 flex gap-4 text-xs font-semibold overflow-x-auto">
+                <button
+                    onClick={() => setActiveTab("nsp_schemes")}
+                    className={`pb-3 px-1 border-b-2 transition flex items-center gap-1.5 whitespace-nowrap ${activeTab === "nsp_schemes"
+                        ? "border-nie-navy text-nie-navy font-bold"
+                        : "border-transparent text-slate-500 hover:text-slate-800"
+                        }`}
+                >
+                    <span>🏛️ Verified National Schemes (NSP)</span>
+                    <span className="bg-nie-navy text-white text-[10px] px-1.5 py-px rounded-full font-mono">
+                        5 Official Schemes
+                    </span>
+                </button>
+
                 <button
                     onClick={() => setActiveTab("announcements")}
                     className={`pb-3 px-1 border-b-2 transition flex items-center gap-1.5 whitespace-nowrap ${activeTab === "announcements"
@@ -3587,7 +3736,7 @@ function ScholarshipPortal({ currentUser, addToast }) {
                         : "border-transparent text-slate-500 hover:text-slate-800"
                         }`}
                 >
-                    <span>📢 Live Announcements & Deadlines</span>
+                    <span>📢 Institutional Notices</span>
                     <span className="bg-slate-100 text-slate-700 text-[10px] px-1.5 py-px rounded-full font-mono">
                         {announcements.length}
                     </span>
@@ -3600,7 +3749,7 @@ function ScholarshipPortal({ currentUser, addToast }) {
                         : "border-transparent text-slate-500 hover:text-slate-800"
                         }`}
                 >
-                    <span>🧭 Application Approval Timeline & Schedules</span>
+                    <span>🧭 Application Stage Tracker</span>
                     <span className="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-px rounded-full font-mono">
                         {applications.length}
                     </span>
@@ -3620,142 +3769,114 @@ function ScholarshipPortal({ currentUser, addToast }) {
                 </button>
             </div>
 
-            {/* Profile Edit Drawer */}
-            {showProfileEdit && (
-                <div className="bg-white p-6 rounded-xl border border-nie-navy/20 shadow-md">
-                    <h2 className="text-sm font-bold text-nie-navy mb-4">
-                        {currentUser?.role === "student" ? "Student Academic & Financial Details" : "Scholarship Coordinator Institutional Profile"}
-                    </h2>
-                    {currentUser?.role === "student" ? (
-                        <form onSubmit={handleSaveProfile} className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                            <div>
-                                <label className="block font-semibold text-slate-700">Engineering Branch</label>
-                                <input
-                                    type="text"
-                                    value={branch}
-                                    onChange={(e) => setBranch(e.target.value)}
-                                    className="mt-1 w-full p-2 border rounded"
-                                />
-                            </div>
-                            <div>
-                                <label className="block font-semibold text-slate-700">Current CGPA</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    max="10"
-                                    min="0"
-                                    value={cgpa}
-                                    onChange={(e) => setCgpa(e.target.value)}
-                                    className="mt-1 w-full p-2 border rounded"
-                                />
-                            </div>
-                            <div>
-                                <label className="block font-semibold text-slate-700">Annual Family Income (INR)</label>
-                                <input
-                                    type="number"
-                                    step="1000"
-                                    value={annualIncome}
-                                    onChange={(e) => setAnnualIncome(e.target.value)}
-                                    className="mt-1 w-full p-2 border rounded"
-                                />
-                            </div>
-                            <div>
-                                <label className="block font-semibold text-slate-700">Category</label>
-                                <select
-                                    value={category}
-                                    onChange={(e) => setCategory(e.target.value)}
-                                    className="mt-1 w-full p-2 border rounded bg-white"
+            {/* TAB 1: VERIFIED NATIONAL SCHOLARSHIP PORTAL (NSP) SCHEMES */}
+            {activeTab === "nsp_schemes" && (
+                <div className="space-y-4">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 className="font-bold text-nie-navy text-sm">National Scholarship Portal (NSP) — Verified Central & AICTE Schemes</h3>
+                            <p className="text-slate-600 mt-0.5">
+                                Students must register and submit applications on the official NSP portal. Schemes are categorized by target student group.
+                            </p>
+                        </div>
+                        <a
+                            href="https://scholarships.gov.in/Students"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-nie-navy hover:bg-nie-navydark text-white text-xs font-semibold px-4 py-2 rounded-lg transition inline-flex items-center gap-1 whitespace-nowrap shrink-0 shadow-sm"
+                        >
+                            <span>Apply on National Scholarship Portal</span>
+                            <span>↗</span>
+                        </a>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {VERIFIED_NSP_SCHEMES.map((sch) => {
+                            let groupTagClass = "bg-slate-100 text-slate-700";
+                            if (sch.target_group.includes("Girl")) groupTagClass = "bg-pink-50 text-pink-800 border border-pink-200";
+                            else if (sch.target_group.includes("Specially")) groupTagClass = "bg-indigo-50 text-indigo-800 border border-indigo-200";
+                            else if (sch.target_group.includes("Swanath")) groupTagClass = "bg-purple-50 text-purple-800 border border-purple-200";
+                            else if (sch.target_group.includes("OBC")) groupTagClass = "bg-teal-50 text-teal-800 border border-teal-200";
+                            else if (sch.target_group.includes("Merit")) groupTagClass = "bg-blue-50 text-blue-800 border border-blue-200";
+
+                            return (
+                                <div
+                                    key={sch.id}
+                                    className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-4"
                                 >
-                                    <option value="General">General</option>
-                                    <option value="OBC">OBC</option>
-                                    <option value="SC">SC</option>
-                                    <option value="ST">ST</option>
-                                    <option value="Cat-1">Cat-1</option>
-                                    <option value="2A">2A</option>
-                                    <option value="2B">2B</option>
-                                    <option value="3A">3A</option>
-                                    <option value="3B">3B</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block font-semibold text-slate-700">State of Domicile</label>
-                                <input
-                                    type="text"
-                                    value={domicile}
-                                    onChange={(e) => setDomicile(e.target.value)}
-                                    className="mt-1 w-full p-2 border rounded"
-                                />
-                            </div>
-                            <div className="flex items-center gap-2 pt-5">
-                                <input
-                                    type="checkbox"
-                                    id="disabilityCheck"
-                                    checked={disability}
-                                    onChange={(e) => setDisability(e.target.checked)}
-                                />
-                                <label htmlFor="disabilityCheck" className="text-slate-700 font-semibold">
-                                    Specially-Abled (Benchmark &ge; 40%)
-                                </label>
-                            </div>
-                            <div className="sm:col-span-3 flex justify-end gap-2 pt-2">
-                                <button
-                                    type="submit"
-                                    className="bg-nie-navy hover:bg-nie-navydark text-white px-5 py-2 rounded font-semibold transition"
-                                >
-                                    Save Profile & Re-Calculate
-                                </button>
-                            </div>
-                        </form>
-                    ) : (
-                        <form onSubmit={handleSaveProfile} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                            <div>
-                                <label className="block font-semibold text-slate-700">Full Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={coordFullName}
-                                    onChange={(e) => setCoordFullName(e.target.value)}
-                                    className="mt-1 w-full p-2 border rounded"
-                                />
-                            </div>
-                            <div>
-                                <label className="block font-semibold text-slate-700">Official Contact Phone</label>
-                                <input
-                                    type="text"
-                                    value={coordPhone}
-                                    onChange={(e) => setCoordPhone(e.target.value)}
-                                    placeholder="+91 XXXXX XXXXX"
-                                    className="mt-1 w-full p-2 border rounded"
-                                />
-                            </div>
-                            <div>
-                                <label className="block font-semibold text-slate-700">Official Institutional Email</label>
-                                <input
-                                    type="email"
-                                    disabled
-                                    value={currentUser?.email || ""}
-                                    className="mt-1 w-full p-2 border rounded bg-slate-100 text-slate-500 cursor-not-allowed"
-                                />
-                            </div>
-                            <div>
-                                <label className="block font-semibold text-slate-700">Department / Section</label>
-                                <input
-                                    type="text"
-                                    disabled
-                                    value={coordDept}
-                                    className="mt-1 w-full p-2 border rounded bg-slate-100 text-slate-500 cursor-not-allowed"
-                                />
-                            </div>
-                            <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
-                                <button
-                                    type="submit"
-                                    className="bg-nie-navy hover:bg-nie-navydark text-white px-5 py-2 rounded font-semibold transition"
-                                >
-                                    Save Coordinator Profile
-                                </button>
-                            </div>
-                        </form>
-                    )}
+                                    <div className="space-y-3">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                {sch.provider}
+                                            </span>
+                                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                Open on NSP
+                                            </span>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-base font-bold text-nie-navy leading-snug">
+                                                {sch.name}
+                                            </h3>
+                                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${groupTagClass}`}>
+                                                    Target: {sch.target_group}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <p className="text-xs text-slate-600 leading-relaxed">
+                                            {sch.description}
+                                        </p>
+
+                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200/80 text-xs space-y-2">
+                                            <div>
+                                                <span className="font-semibold text-slate-700">Applicable Course Level:</span>{" "}
+                                                <span className="text-slate-800">{sch.course_level}</span>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold text-slate-700">Eligibility Criteria:</span>{" "}
+                                                <span className="text-slate-800">{sch.eligibility}</span>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold text-slate-700">Verified Income Limit:</span>{" "}
+                                                <span className="text-emerald-800 font-semibold">{sch.income_limit}</span>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold text-slate-700">Application Deadline:</span>{" "}
+                                                <span className="text-amber-800 font-medium inline-flex items-center gap-1">
+                                                    <span>⏰</span>
+                                                    <span>{sch.deadline_text}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                                        <a
+                                            href={sch.guidelines_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs font-semibold text-nie-navy hover:text-nie-gold inline-flex items-center gap-1 py-1.5 px-3 rounded border border-slate-200 hover:bg-slate-50 transition"
+                                        >
+                                            <span>📄 View Official Guidelines</span>
+                                            <span>↗</span>
+                                        </a>
+                                        <a
+                                            href={sch.apply_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="bg-nie-navy hover:bg-nie-navydark text-white text-xs font-semibold px-4 py-2 rounded-lg transition inline-flex items-center gap-1 shadow-sm"
+                                        >
+                                            <span>Apply on NSP</span>
+                                            <span>↗</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
 
@@ -4432,6 +4553,180 @@ function ScholarshipPortal({ currentUser, addToast }) {
                                     className="bg-nie-navy hover:bg-nie-navydark text-white px-5 py-2 rounded font-semibold disabled:opacity-50"
                                 >
                                     {updatingStage ? "Saving..." : "Save Schedule"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* EDIT PROFILE MODAL (COORDINATORS & STUDENTS) */}
+            {showProfileModal && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-4">
+                        <div className="flex justify-between items-center border-b pb-3">
+                            <div>
+                                <h2 className="text-base font-bold text-nie-navy">
+                                    {currentUser?.role === "student" ? "Edit Academic & Financial Profile" : "Edit Scholarship Coordinator Profile"}
+                                </h2>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    {currentUser?.role === "student"
+                                        ? "Update details used for scholarship matching and institutional records"
+                                        : "Update official coordinator contact details and institutional directory listing"}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowProfileModal(false)}
+                                className="text-slate-400 hover:text-slate-700 text-xl font-bold p-1 leading-none"
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
+                            {currentUser?.role === "student" ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block font-semibold text-slate-700">Engineering Branch</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={branch}
+                                            onChange={(e) => setBranch(e.target.value)}
+                                            className="mt-1 w-full p-2 border rounded"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-semibold text-slate-700">Current CGPA</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            max="10"
+                                            min="0"
+                                            required
+                                            value={cgpa}
+                                            onChange={(e) => setCgpa(e.target.value)}
+                                            className="mt-1 w-full p-2 border rounded"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-semibold text-slate-700">Annual Family Income (INR)</label>
+                                        <input
+                                            type="number"
+                                            step="1000"
+                                            required
+                                            value={annualIncome}
+                                            onChange={(e) => setAnnualIncome(e.target.value)}
+                                            className="mt-1 w-full p-2 border rounded"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-semibold text-slate-700">Reservation Category</label>
+                                        <select
+                                            value={category}
+                                            onChange={(e) => setCategory(e.target.value)}
+                                            className="mt-1 w-full p-2 border rounded bg-white"
+                                        >
+                                            <option value="General">General</option>
+                                            <option value="OBC">OBC</option>
+                                            <option value="SC">SC</option>
+                                            <option value="ST">ST</option>
+                                            <option value="Cat-1">Cat-1</option>
+                                            <option value="2A">2A</option>
+                                            <option value="2B">2B</option>
+                                            <option value="3A">3A</option>
+                                            <option value="3B">3B</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block font-semibold text-slate-700">State of Domicile</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={domicile}
+                                            onChange={(e) => setDomicile(e.target.value)}
+                                            className="mt-1 w-full p-2 border rounded"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-6">
+                                        <input
+                                            type="checkbox"
+                                            id="disabilityModalCheck"
+                                            checked={disability}
+                                            onChange={(e) => setDisability(e.target.checked)}
+                                        />
+                                        <label htmlFor="disabilityModalCheck" className="text-slate-700 font-semibold cursor-pointer">
+                                            Specially-Abled (Disability &ge; 40%)
+                                        </label>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block font-semibold text-slate-700">Full Name *</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={editFullName}
+                                            onChange={(e) => setEditFullName(e.target.value)}
+                                            className="mt-1 w-full p-2 border rounded text-xs"
+                                            placeholder="e.g. Prof. Savitha Murthy"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-semibold text-slate-700">Official Contact Phone</label>
+                                        <input
+                                            type="text"
+                                            value={editPhone}
+                                            onChange={(e) => setEditPhone(e.target.value)}
+                                            placeholder="e.g. +91 98800 23456"
+                                            className="mt-1 w-full p-2 border rounded text-xs"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-semibold text-slate-700">Official Institutional Email (Read Only)</label>
+                                        <input
+                                            type="email"
+                                            disabled
+                                            value={currentUser?.email || ""}
+                                            className="mt-1 w-full p-2 border rounded bg-slate-100 text-slate-500 cursor-not-allowed text-xs"
+                                        />
+                                        <p className="text-[10px] text-slate-400 mt-0.5">Assigned by institutional administration</p>
+                                    </div>
+                                    <div>
+                                        <label className="block font-semibold text-slate-700">Department / Cell (Read Only)</label>
+                                        <input
+                                            type="text"
+                                            disabled
+                                            value={coordDept}
+                                            className="mt-1 w-full p-2 border rounded bg-slate-100 text-slate-500 cursor-not-allowed text-xs"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end items-center gap-2 pt-3 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowProfileModal(false)}
+                                    className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={savingProfile}
+                                    className="px-5 py-2 rounded-lg bg-nie-navy hover:bg-nie-navydark text-white font-semibold transition flex items-center gap-1.5 disabled:opacity-50 shadow-sm"
+                                >
+                                    {savingProfile ? (
+                                        <React.Fragment>
+                                            <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                            <span>Saving...</span>
+                                        </React.Fragment>
+                                    ) : (
+                                        <span>Save Changes</span>
+                                    )}
                                 </button>
                             </div>
                         </form>
