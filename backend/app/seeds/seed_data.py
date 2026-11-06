@@ -15,16 +15,218 @@ from backend.app.models.complaint import (
     ComplaintStatus,
     ComplaintTier,
     ComplaintPriority,
+    ComplaintCampus,
     ComplaintCategory,
     ComplaintEvidence,
     ComplaintLocation,
     ComplaintTimeline,
+    ComplaintVote,
+    InternalComplaintMessage,
 )
 from backend.app.models.escalation import EscalationConfig, EscalationLog
-from backend.app.models.scholarship import Scholarship, ScholarshipRecommendation
+from backend.app.models.scholarship import (
+    Scholarship,
+    ScholarshipRecommendation,
+    ScholarshipAnnouncement,
+    ScholarshipApplication,
+    ScholarshipStageSchedule,
+)
 from backend.app.models.chatbot import KnowledgeBaseItem, KnowledgeBaseCategory
 from backend.app.models.notification import Notification, NotificationType
+from backend.app.models.announcement import InstitutionalAnnouncement
 from backend.app.auth.security import hash_password
+
+def seed_scholarship_module(db: Session):
+    """Safely provisions the scholarship coordinator, announcements, and application schedules."""
+    now = utc_now()
+
+    # 1. Scholarship Coordinator User
+    coord = db.query(User).filter(User.email == "coordinator.scholarships@nie.ac.in").first()
+    if not coord:
+        print("[Seed] Creating Scholarship Coordinator account...")
+        coord = User(
+            email="coordinator.scholarships@nie.ac.in",
+            username="coordinator_scholarships",
+            full_name="Prof. Savitha Murthy",
+            hashed_password=hash_password("Scholarship@123"),
+            role=UserRole.SCHOLARSHIP_COORDINATOR,
+            can_publish_scholarships=True,
+            is_active=True,
+        )
+        db.add(coord)
+        db.flush()
+
+    # 2. Scholarship Announcements
+    if db.query(ScholarshipAnnouncement).count() == 0:
+        print("[Seed] Seeding realistic scholarship announcements & verification schedules...")
+        ann1 = ScholarshipAnnouncement(
+            scholarship_name="State Scholarship Portal (SSP) Post-Matric Karnataka 2026-27",
+            title="Physical Seal & Signature Verification Schedule",
+            description="All eligible B.Tech and M.Tech students who have submitted the SSP e-attestation form are requested to attend the physical document verification for the Principal's institutional seal and signature.",
+            eligibility_criteria="SC, ST, OBC (Cat-1, 2A, 2B, 3A, 3B), and EWS students domiciled in Karnataka with valid RD certificate numbers.",
+            application_start_date=now - timedelta(days=20),
+            application_deadline=now + timedelta(days=25),
+            links_and_documents="https://ssp.postmatric.karnataka.gov.in\nhttps://nie.ac.in/scholarships/ssp-guide.pdf",
+            event_date=now + timedelta(days=6),
+            event_time_window="10:30 AM – 1:30 PM",
+            event_location="Scholarship Section, Room 104, Administrative Block",
+            required_documents="1. SSP Online Application Acknowledgement\n2. College Fee Paid Receipt 2026-27\n3. Original Income & Caste Certificate\n4. Previous Year Marksheets\n5. Student Bank Passbook Copy",
+            responsible_authority="Prof. Savitha Murthy (Nodal Scholarship Coordinator)",
+            seal_signature_instructions="Ensure department mentor counter-signature is obtained on page 2 before submitting for Principal's seal.",
+            is_urgent=True,
+            status="published",
+            author_id=coord.id,
+            published_at=now - timedelta(days=1),
+            created_at=now - timedelta(days=1),
+            updated_at=now - timedelta(days=1),
+        )
+        db.add(ann1)
+
+        ann2 = ScholarshipAnnouncement(
+            scholarship_name="NIE Alumni Merit-cum-Means Financial Aid 2026",
+            title="Merit-cum-Means Applications Open for Academic Year 2026-27",
+            description="The NIE Alumni Association invites applications from meritorious engineering students facing financial hardship for direct tuition fee waivers.",
+            eligibility_criteria="B.Tech 2nd, 3rd, and 4th year students with CGPA >= 7.50 and family annual income below ₹4,00,000.",
+            application_start_date=now - timedelta(days=10),
+            application_deadline=now + timedelta(days=15),
+            links_and_documents="https://niealumni.org.in/scholarships\nhttps://nie.ac.in/alumni-aid-form.pdf",
+            event_date=now + timedelta(days=12),
+            event_time_window="2:00 PM – 4:30 PM",
+            event_location="Alumni Affairs Office, Golden Jubilee Block",
+            required_documents="1. Duly filled Alumni Aid Form\n2. Two Faculty Recommendation Letters\n3. Latest Grade Cards\n4. Parent Income Proof (ITR / Tahsildar Certificate)",
+            responsible_authority="Er. H.S. Ganesh (Alumni Liaison Officer)",
+            seal_signature_instructions="Requires endorsement from Department Head of Department (HOD).",
+            is_urgent=False,
+            status="published",
+            author_id=coord.id,
+            published_at=now - timedelta(days=3),
+            created_at=now - timedelta(days=3),
+            updated_at=now - timedelta(days=3),
+        )
+        db.add(ann2)
+        db.flush()
+
+    # 3. Student Application Progress Tracking
+    student_user = db.query(User).filter(User.username == "4NI21CS045").first()
+    if student_user and db.query(ScholarshipApplication).filter(ScholarshipApplication.student_id == student_user.id).count() == 0:
+        print("[Seed] Seeding student application timeline with configurable stages...")
+        ssp_sch = db.query(Scholarship).filter(Scholarship.name.ilike("%SSP%")).first()
+
+        app = ScholarshipApplication(
+            scholarship_id=ssp_sch.id if ssp_sch else None,
+            scholarship_name="SSP Post-Matric Karnataka 2026-27",
+            student_id=student_user.id,
+            application_number="SSP-2026-NIE-8842",
+            current_stage="Required Seal and Signature",
+            status="in_progress",
+            submitted_at=now - timedelta(days=18),
+            updated_at=now - timedelta(days=1),
+        )
+        db.add(app)
+        db.flush()
+
+        stages_data = [
+            (1, "Scholarship Announced", "completed", now - timedelta(days=20), None, None, None, None, None, "Official state notification published.", now - timedelta(days=20)),
+            (2, "Application Submitted Online", "completed", now - timedelta(days=18), None, "SSP Portal Online", "SSP Form, Aadhaar, Income Certificate", "Student Self", None, "Application submitted with ref SSP-2026-NIE-8842.", now - timedelta(days=18)),
+            (3, "Document Verification by College Officer", "completed", now - timedelta(days=12), "11:00 AM - 1:00 PM", "Room 104, Administrative Block", "College Fee Receipt, Caste Certificate", "Prof. Savitha Murthy", None, "All uploaded certificates verified successfully against State DB.", now - timedelta(days=12)),
+            (4, "Scholarship Coordinator Review", "completed", now - timedelta(days=5), None, "Administrative Block", "Academic Transcripts (CGPA 8.75)", "Prof. Savitha Murthy", None, "Verified academic eligibility and fee clearance.", now - timedelta(days=5)),
+            (5, "Required Seal and Signature", "in_progress", now + timedelta(days=6), "10:30 AM – 1:30 PM", "Scholarship Section, Room 104, Admin Block", "Original SSP acknowledgement slip & Fee receipt", "Dr. Rohini Nagapadma / Coordinator", "Must obtain faculty mentor signature before bringing to Room 104 for Principal's official seal.", "Scheduled appointment confirmed for seal & signature processing.", None),
+            (6, "Institutional Approval & Dispatch", "pending", now + timedelta(days=10), None, "Principal's Office", None, "Dr. Rohini Nagapadma", None, "Awaiting seal and signature completion.", None),
+            (7, "Forwarded to State Welfare Department", "pending", now + timedelta(days=15), None, "Social Welfare Department, Mysuru", None, "District Officer", None, "Pending institutional dispatch.", None),
+            (8, "Final Approval & Disbursal (DBT)", "pending", now + timedelta(days=30), None, "Direct Benefit Transfer (DBT)", None, "State Treasury", None, "Disbursal directly to Aadhaar-seeded bank account.", None),
+        ]
+
+        for order, name, st, exp_d, win, loc, docs, auth, seal_inst, rem, comp_at in stages_data:
+            s_sched = ScholarshipStageSchedule(
+                application_id=app.id,
+                stage_name=name,
+                stage_order=order,
+                status=st,
+                expected_date=exp_d,
+                expected_time_window=win,
+                location_or_office=loc,
+                required_documents=docs,
+                responsible_authority=auth,
+                seal_signature_instructions=seal_inst,
+                officer_remarks=rem,
+                completed_at=comp_at,
+                updated_at=now,
+            )
+            db.add(s_sched)
+
+    db.commit()
+
+
+def seed_institutional_announcements(db: Session):
+    """Provisions sample institutional announcements for the live ticker and notice boards."""
+    now = utc_now()
+    admin = db.query(User).filter(User.email == "superadmin@nie.ac.in").first()
+    admin_id = admin.id if admin else None
+
+    sample_notices = [
+        {
+            "title": "SSP Karnataka e-Attestation & Seal Verification Camp",
+            "message": "Physical verification camp begins Monday at Admin Block Rm 102 (10 AM - 4 PM). Bring original caste, income & fee receipts.",
+            "category": "Scholarship",
+            "priority": "Urgent",
+            "is_urgent": True,
+            "destination_route": "scholarships",
+        },
+        {
+            "title": "Fast-Track Semester Revaluation & Photocopy Window Open",
+            "message": "Odd semester VTU/Autonomous fast-track revaluation applications are accepted through the student portal till Nov 18, 5:00 PM.",
+            "category": "Academic",
+            "priority": "High",
+            "is_urgent": True,
+            "destination_route": "dashboard",
+        },
+        {
+            "title": "South Campus High-Voltage Transformer Maintenance",
+            "message": "Planned sub-station maintenance on Saturday (6:00 AM - 11:30 AM). Backup generators will supply central server and lab grids.",
+            "category": "Infrastructure",
+            "priority": "Normal",
+            "is_urgent": False,
+            "destination_route": "community",
+        },
+        {
+            "title": "Campus Placement Drive 2026: Tier-1 IT & Core Engineering",
+            "message": "Eligible 7th sem students must verify their placement portal profiles by Nov 20. Upcoming company visits: Bosch, Cisco & Tech Mahindra.",
+            "category": "Career / Placement",
+            "priority": "Normal",
+            "is_urgent": False,
+            "destination_route": "community",
+        },
+        {
+            "title": "NIE Alumni Meritorious Financial Aid Window Extended",
+            "message": "Deadline extended to Nov 25. Eligible 2nd, 3rd, and 4th year BE students can submit verified applications to the Scholarship Cell.",
+            "category": "Scholarship",
+            "priority": "High",
+            "is_urgent": False,
+            "destination_route": "scholarships",
+        },
+    ]
+
+    for item in sample_notices:
+        existing = db.query(InstitutionalAnnouncement).filter(
+            InstitutionalAnnouncement.title == item["title"]
+        ).first()
+        if not existing:
+            db.add(InstitutionalAnnouncement(
+                title=item["title"],
+                message=item["message"],
+                category=item["category"],
+                priority=item["priority"],
+                is_urgent=item["is_urgent"],
+                is_active=True,
+                destination_route=item["destination_route"],
+                author_id=admin_id,
+                published_at=now,
+                created_at=now,
+                updated_at=now,
+            ))
+    db.commit()
+    print("[Seed] Seeded institutional announcements for news ticker.")
+
 
 def seed_database():
     """Initializes schema and populates realistic institutional seed data for NIE Mysuru."""
@@ -35,7 +237,9 @@ def seed_database():
     try:
         # Check if already seeded
         if db.query(User).count() > 0:
-            print("[Seed] Database already contains records. Skipping seed.")
+            print("[Seed] Database already contains records. Seeding scholarship enhancements and announcements...")
+            seed_scholarship_module(db)
+            seed_institutional_announcements(db)
             return
 
         print("[Seed] Seeding departments...")
@@ -127,6 +331,7 @@ def seed_database():
             hashed_password=hash_password("2003-05-15"),
             role=UserRole.STUDENT,
             department_id=dept_objs["CSE"].id,
+            phone="9880011223",
             is_active=True,
         )
         db.add(student_user)
@@ -148,6 +353,10 @@ def seed_database():
             state_of_domicile="Karnataka",
             disability_status=False,
             existing_scholarships="None",
+            parent_phone_number="9845123456",
+            parent_name="Suresh Sharma",
+            parent_relation="Father",
+            student_phone_number="9880011223",
         )
         db.add(student_profile)
 
@@ -159,6 +368,7 @@ def seed_database():
             hashed_password=hash_password("2003-11-22"),
             role=UserRole.STUDENT,
             department_id=dept_objs["CSE"].id,
+            phone="9880044556",
             is_active=True,
         )
         db.add(student_user2)
@@ -179,6 +389,10 @@ def seed_database():
             annual_income=450000.0,
             state_of_domicile="Karnataka",
             disability_status=False,
+            parent_phone_number="9900987654",
+            parent_name="Ramesh Verma",
+            parent_relation="Father",
+            student_phone_number="9880044556",
         )
         db.add(student_profile2)
 
@@ -190,6 +404,7 @@ def seed_database():
             hashed_password=hash_password("1985-08-20"),
             role=UserRole.FACULTY,
             department_id=dept_objs["MECH"].id,
+            phone="9844012345",
             is_active=True,
         )
         db.add(faculty_user)
@@ -381,7 +596,8 @@ def seed_database():
             grievance_id="NIE-2026-0001",
             title="Computer Lab 4 Workstations Overheating and Tripping Circuit",
             description="Workstations 15 through 30 in Computer Lab 4 shut down continuously during data structures practical sessions due to AC compressor failure. Burning smell detected.",
-            category=ComplaintCategory.LAB,
+            category=ComplaintCategory.INFRASTRUCTURE,
+            campus=ComplaintCampus.NORTH_CAMPUS,
             department_id=dept_objs["CSE"].id,
             complainant_id=student_user.id,
             is_anonymous=False,
@@ -396,6 +612,8 @@ def seed_database():
             expected_deadline=now + timedelta(days=9),
             tier1_entered_at=now - timedelta(days=6),
             assigned_to_id=officer_cse.id,
+            upvote_count=24,
+            affected_students_count=25,
         )
         db.add(comp1)
         db.flush()
@@ -412,7 +630,7 @@ def seed_database():
             complaint_id=comp1.id,
             action="Complaint Submitted",
             actor_id=student_user.id,
-            remarks="Registered by student via portal.",
+            remarks="Registered by student via portal for North Campus.",
             from_status=None,
             to_status=ComplaintStatus.SUBMITTED,
             timestamp=now - timedelta(days=6),
@@ -442,10 +660,11 @@ def seed_database():
             title="Severe Water Pressure Drop in Sharavathi Girls Hostel 3rd Floor",
             description="Water supply to washrooms on the 3rd floor of Sharavathi hostel has been erratic for over three weeks. Students forced to carry water buckets up stairs.",
             category=ComplaintCategory.HOSTEL,
+            campus=ComplaintCampus.SOUTH_CAMPUS,
             department_id=dept_objs["HOSTEL"].id,
             complainant_id=student_user.id,
             is_anonymous=False,
-            location_name="Sharavathi Girls Hostel, Wing C",
+            location_name="Sharavathi Girls Hostel, Wing C Room 304",
             status=ComplaintStatus.ASSIGNED,
             current_tier=ComplaintTier.TIER_2,
             predicted_priority=ComplaintPriority.HIGH,
@@ -456,6 +675,8 @@ def seed_database():
             expected_deadline=now + timedelta(days=12),
             tier1_entered_at=now - timedelta(days=18),
             tier2_entered_at=now - timedelta(days=3),
+            upvote_count=35,
+            affected_students_count=36,
         )
         db.add(comp2)
         db.flush()
@@ -471,7 +692,7 @@ def seed_database():
             complaint_id=comp2.id,
             action="Complaint Submitted",
             actor_id=student_user.id,
-            remarks="Submitted by student.",
+            remarks="Submitted by student for South Campus.",
             from_status=None,
             to_status=ComplaintStatus.SUBMITTED,
             timestamp=now - timedelta(days=18),
@@ -495,12 +716,27 @@ def seed_database():
             notified_authorities="Institutional Grievance Redressal Cell",
         ))
 
+        # Seed Internal Messages between Tiers on comp2
+        db.add(InternalComplaintMessage(
+            complaint_id=comp2.id,
+            sender_id=officer_cse.id,
+            message="Plumbing inspection completed. Main overhead tank booster pump bearing damaged. Requisition #EST-440 submitted to estate division.",
+            created_at=now - timedelta(days=2),
+        ))
+        db.add(InternalComplaintMessage(
+            complaint_id=comp2.id,
+            sender_id=grievance_cell_user.id,
+            message="Emergency purchase order fast-tracked with finance committee. Replacement pump installation scheduled for Friday morning.",
+            created_at=now - timedelta(days=1),
+        ))
+
         # Complaint 3: Critical Campus Safety Complaint (Demonstrating Instant Critical Override)
         comp3 = Complaint(
             grievance_id="NIE-2026-0003",
             title="Live 440V Electrical Cable Exposed Near Mechanical Block Walkway",
             description="Sparking exposed 440V high voltage wire lying near North Block entrance after heavy rains. Water logging around the junction box posing extreme electrocution hazard.",
-            category=ComplaintCategory.SAFETY,
+            category=ComplaintCategory.CAMPUS_SAFETY,
+            campus=ComplaintCampus.NORTH_CAMPUS,
             department_id=dept_objs["ESTATE"].id,
             complainant_id=faculty_user.id,
             is_anonymous=False,
@@ -515,17 +751,12 @@ def seed_database():
             submission_date=now - timedelta(days=1),
             expected_deadline=now + timedelta(days=14),
             tier1_entered_at=now - timedelta(days=1),
+            upvote_count=52,
+            affected_students_count=53,
         )
         db.add(comp3)
         db.flush()
 
-        db.add(ComplaintLocation(
-            complaint_id=comp3.id,
-            latitude=12.2828,
-            longitude=76.6405,
-            accuracy_meters=5.0,
-            captured_at=now - timedelta(days=1),
-        ))
         db.add(ComplaintTimeline(
             complaint_id=comp3.id,
             action="Complaint Submitted",
@@ -541,7 +772,8 @@ def seed_database():
             grievance_id="NIE-2026-0004",
             title="Overheating AC and Power Trips in Computer Lab 4",
             description="Computers in 6th sem CSE lab 4 shut down due to AC failure. Lab session disrupted by server overheating.",
-            category=ComplaintCategory.LAB,
+            category=ComplaintCategory.LABORATORY,
+            campus=ComplaintCampus.NORTH_CAMPUS,
             department_id=dept_objs["CSE"].id,
             complainant_id=student_user2.id,
             is_anonymous=False,
@@ -557,6 +789,8 @@ def seed_database():
             submission_date=now - timedelta(hours=4),
             expected_deadline=now + timedelta(days=15),
             tier1_entered_at=now - timedelta(hours=4),
+            upvote_count=8,
+            affected_students_count=9,
         )
         db.add(comp4)
         db.flush()
@@ -570,6 +804,50 @@ def seed_database():
             to_status=ComplaintStatus.SUBMITTED,
             timestamp=now - timedelta(hours=4),
         ))
+
+        # Complaint 5: Resolved - Awaiting Complainant Confirmation (Demonstrating 5-Day Confirmation Window)
+        comp5 = Complaint(
+            grievance_id="NIE-2026-0005",
+            title="Placement Registration Portal Crashes During Tier-1 Company Openings",
+            description="Placement portal timed out repeatedly during Infosys and Cisco recruitment test registrations. Over 40 students could not submit slot preferences.",
+            category=ComplaintCategory.PLACEMENT,
+            campus=ComplaintCampus.NORTH_CAMPUS,
+            department_id=dept_objs["CSE"].id,
+            complainant_id=student_user.id,
+            is_anonymous=False,
+            location_name="Training & Placement Cell, Admin Block 1st Floor",
+            status=ComplaintStatus.RESOLVED_AWAITING_CONFIRMATION,
+            current_tier=ComplaintTier.TIER_1,
+            predicted_priority=ComplaintPriority.HIGH,
+            final_priority=ComplaintPriority.HIGH,
+            priority_confidence=0.88,
+            priority_explanation="High-impact career service issue affecting placement eligibility.",
+            submission_date=now - timedelta(days=4),
+            resolved_at=now - timedelta(days=2),
+            resolution_date=now - timedelta(days=2),
+            confirmation_deadline=now + timedelta(days=3), # 3 days remaining in 5-day window
+            student_confirmed=None, # Awaiting student response
+            resolution_remarks="Placement server pool scaled up to 64GB RAM and load balancer updated. Registration window extended by 48 hours for all eligible batches.",
+            upvote_count=42,
+            affected_students_count=43,
+        )
+        db.add(comp5)
+        db.flush()
+
+        db.add(ComplaintTimeline(
+            complaint_id=comp5.id,
+            action="Marked as Resolved by Officer",
+            actor_id=officer_cse.id,
+            remarks="Placement server memory expanded; registrations extended by 48 hours. Awaiting complainant confirmation.",
+            from_status=ComplaintStatus.UNDER_INVESTIGATION,
+            to_status=ComplaintStatus.RESOLVED_AWAITING_CONFIRMATION,
+            timestamp=now - timedelta(days=2),
+        ))
+
+        # Seed sample Community Support Votes
+        db.add(ComplaintVote(complaint_id=comp1.id, user_id=student_user2.id, created_at=now - timedelta(days=4)))
+        db.add(ComplaintVote(complaint_id=comp2.id, user_id=student_user2.id, created_at=now - timedelta(days=10)))
+        db.add(ComplaintVote(complaint_id=comp5.id, user_id=student_user2.id, created_at=now - timedelta(days=3)))
 
         # Seed initial notification for student
         db.add(Notification(
@@ -588,6 +866,10 @@ def seed_database():
             notification_type=NotificationType.ESCALATED,
             created_at=now - timedelta(days=3),
         ))
+
+        # Seed scholarship module and institutional announcements
+        seed_scholarship_module(db)
+        seed_institutional_announcements(db)
 
         db.commit()
         print("[Seed] Successfully seeded realistic NIE Mysuru database!")

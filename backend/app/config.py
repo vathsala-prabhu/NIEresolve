@@ -24,9 +24,24 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
     MAX_UPLOAD_SIZE_MB: int = 10
     
-    # Escalation
+    # Escalation & Confirmation Deadlines
     TIER1_ESCALATION_DAYS: int = 15
     TIER2_ESCALATION_DAYS: int = 15
+    AUTO_CONFIRMATION_DAYS: int = 5
+    
+    # Community Upvoting Priority Thresholds
+    UPVOTE_MULTI_USER_THRESHOLD: int = 5       # Promotes Low -> Medium
+    UPVOTE_WIDESPREAD_THRESHOLD: int = 20      # Promotes Medium/Low -> High
+    UPVOTE_INSTITUTIONAL_THRESHOLD: int = 50   # Promotes High/Medium -> Critical
+
+    # SMS Provider Configuration
+    SMS_PROVIDER: str = "test_logger"          # "test_logger", "twilio", "msg91"
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_PHONE_NUMBER: str = ""
+    MSG91_AUTH_KEY: str = ""
+    MSG91_SENDER_ID: str = "NIERES"
+    MSG91_DLT_TE_ID: str = ""
     
     # ML & Duplicate Detection
     DUPLICATE_SIMILARITY_THRESHOLD: float = 0.40

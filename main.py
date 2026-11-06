@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.config import settings
 from backend.app.database import engine, Base
+from backend.app.database_migrations import run_migrations
 from backend.app.scheduler import escalation_scheduler
 from backend.app.seeds.seed_data import seed_database
 from backend.app.ml.train_model import train_priority_model
@@ -22,12 +23,14 @@ from backend.app.routers import (
     notifications,
     analytics,
     admin,
+    announcements,
 )
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Ensure DB schema & seed data
     Base.metadata.create_all(bind=engine)
+    run_migrations()
     seed_database()
 
     # Train or load ML model if model artifact missing
@@ -83,6 +86,7 @@ app.include_router(chatbot.router)
 app.include_router(notifications.router)
 app.include_router(analytics.router)
 app.include_router(admin.router)
+app.include_router(announcements.router)
 
 # Health & Info Endpoint
 @app.get("/api/info")

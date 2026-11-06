@@ -14,6 +14,23 @@ class StudentScholarshipProfileCreate(BaseModel):
     disability_status: bool = False
     existing_scholarships: Optional[str] = None
 
+class ScholarshipProfileUpdateRequest(BaseModel):
+    course: Optional[str] = "B.E."
+    branch: Optional[str] = None
+    semester: Optional[int] = None
+    year: Optional[int] = None
+    cgpa: Optional[float] = None
+    annual_income: Optional[float] = None
+    category: Optional[str] = None
+    state_of_domicile: Optional[str] = None
+    disability_status: Optional[bool] = None
+    existing_scholarships: Optional[str] = None
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    department_id: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 class ScholarshipResponse(BaseModel):
     id: int
     name: str

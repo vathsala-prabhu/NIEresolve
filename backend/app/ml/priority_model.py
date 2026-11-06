@@ -37,12 +37,12 @@ class PriorityPredictor:
                 self.model = None
                 self.vectorizer = None
 
-    def predict(self, category: str, title: str, description: str) -> Dict[str, Any]:
+    def predict(self, category: str, title: str, description: str, upvote_count: int = 1) -> Dict[str, Any]:
         """
-        Analyzes grievance text and category.
+        Analyzes grievance text, category, and community supporter count.
         Returns:
             - predicted_priority: str ("Critical", "High", "Medium", "Low")
-            - final_priority: str (accounts for safety override)
+            - final_priority: str (accounts for safety and community support override)
             - confidence: float (0.0 - 1.0)
             - is_safety_critical: bool
             - explanation: str
@@ -99,9 +99,23 @@ class PriorityPredictor:
             override_reason = f"Safety-Critical Override: detected high-risk factors ({', '.join(matched_safety or [category])})"
             if "Critical" not in top_factors:
                 top_factors.insert(0, f"Safety hazard terms: {', '.join(matched_safety[:3])}")
-        elif len(matched_high) > 0 and final_priority in ["Low", "Medium"]:
-            final_priority = "High"
-            override_reason = f"Institutional Impact Override: high-stakes academic/placement/health factors ({', '.join(matched_high)})"
+        else:
+            # Check community support upvote thresholds
+            if upvote_count >= getattr(settings, "UPVOTE_INSTITUTIONAL_THRESHOLD", 50) and final_priority != "Critical":
+                final_priority = "Critical"
+                override_reason = f"Community Impact Override: institutional-scale grievance ({upvote_count} supporters)"
+                top_factors.insert(0, f"Institutional support: {upvote_count}+ affected students")
+            elif upvote_count >= getattr(settings, "UPVOTE_WIDESPREAD_THRESHOLD", 20) and final_priority in ["Low", "Medium"]:
+                final_priority = "High"
+                override_reason = f"Community Impact Override: widespread grievance ({upvote_count} supporters)"
+                top_factors.insert(0, f"Widespread support: {upvote_count}+ affected students")
+            elif upvote_count >= getattr(settings, "UPVOTE_MULTI_USER_THRESHOLD", 5) and final_priority == "Low":
+                final_priority = "Medium"
+                override_reason = f"Community Impact Override: multi-user grievance ({upvote_count} supporters)"
+                top_factors.insert(0, f"Multi-user support: {upvote_count}+ affected students")
+            elif len(matched_high) > 0 and final_priority in ["Low", "Medium"]:
+                final_priority = "High"
+                override_reason = f"Institutional Impact Override: high-stakes academic/placement/health factors ({', '.join(matched_high)})"
 
         # Construct explanation
         explanation_parts = []

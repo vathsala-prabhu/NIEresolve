@@ -10,6 +10,7 @@ class UserRole:
     GRIEVANCE_CELL = "grievance_cell"   # Tier 2
     PRINCIPAL = "principal"             # Tier 3 / Higher Authority
     SUPER_ADMIN = "super_admin"
+    SCHOLARSHIP_COORDINATOR = "scholarship_coordinator"
 
 class Department(Base):
     __tablename__ = "departments"
@@ -35,6 +36,7 @@ class User(Base):
     role = Column(String(50), nullable=False, index=True)  # UserRole enum value
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
     phone = Column(String(20), nullable=True)
+    can_publish_scholarships = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
@@ -63,6 +65,10 @@ class StudentProfile(Base):
     state_of_domicile = Column(String(100), default="Karnataka")
     disability_status = Column(Boolean, default=False)
     existing_scholarships = Column(Text, nullable=True)
+    parent_phone_number = Column(String(20), nullable=True) # Full registered mobile number of parent/guardian
+    parent_name = Column(String(100), nullable=True) # Full name of parent/guardian
+    parent_relation = Column(String(50), default="Father") # Father, Mother, Legal Guardian
+    student_phone_number = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=utc_now)
 
     user = relationship("User", back_populates="student_profile")

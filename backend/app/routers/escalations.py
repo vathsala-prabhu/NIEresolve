@@ -140,3 +140,16 @@ def update_escalation_config(
     db.commit()
     return {"message": f"Updated {tier_name} deadline to {duration_days} days."}
 
+@router.post("/run-auto-confirm")
+def trigger_auto_confirm_check(
+    current_user = Depends(require_any_officer),
+    db: Session = Depends(get_db),
+):
+    """Manually triggers evaluation of 5-day resolution auto-confirmation timeouts."""
+    from backend.app.services.complaint_service import ComplaintService
+    result = ComplaintService.check_and_run_auto_confirmations(db)
+    return {
+        "message": "Auto-confirmation check completed.",
+        "details": result,
+    }
+

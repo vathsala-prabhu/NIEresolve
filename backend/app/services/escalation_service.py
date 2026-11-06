@@ -14,6 +14,7 @@ from backend.app.models.escalation import EscalationLog, EscalationConfig
 from backend.app.models.user import User, UserRole
 from backend.app.models.notification import Notification, NotificationType
 from backend.app.models.audit import AuditLog
+from backend.app.services.sms_service import SmsService
 from backend.app.config import settings
 
 class EscalationService:
@@ -108,6 +109,20 @@ class EscalationService:
                         notification_type=NotificationType.ESCALATED,
                     ))
 
+                    # Dispatch SMS to Complainant
+                    phone = comp.complainant.phone
+                    if not phone and comp.complainant.student_profile:
+                        phone = comp.complainant.student_profile.student_phone_number
+                    if phone:
+                        SmsService.send_sms(
+                            recipient_phone=phone,
+                            event_type="complaint_escalated",
+                            template_params={"grievance_id": comp.grievance_id, "tier": "Tier 2 (Grievance Cell)"},
+                            complaint_id=comp.id,
+                            recipient_id=comp.complainant_id,
+                            db=db,
+                        )
+
                     # Notify Grievance Cell members
                     for gc in grievance_cell_users:
                         db.add(Notification(
@@ -158,6 +173,20 @@ class EscalationService:
                         message="Your grievance has been escalated to Tier 3 for direct review and executive action by the Principal / Higher Authority.",
                         notification_type=NotificationType.ESCALATED,
                     ))
+
+                    # Dispatch SMS to Complainant
+                    phone = comp.complainant.phone
+                    if not phone and comp.complainant.student_profile:
+                        phone = comp.complainant.student_profile.student_phone_number
+                    if phone:
+                        SmsService.send_sms(
+                            recipient_phone=phone,
+                            event_type="complaint_escalated",
+                            template_params={"grievance_id": comp.grievance_id, "tier": "Tier 3 (Principal Office)"},
+                            complaint_id=comp.id,
+                            recipient_id=comp.complainant_id,
+                            db=db,
+                        )
 
                     for pr in principal_users:
                         db.add(Notification(

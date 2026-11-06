@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from backend.app.database import get_db
 from backend.app.models.user import User, UserRole, Department, StudentProfile, FacultyProfile
 from backend.app.models.audit import AuditLog
-from backend.app.models.complaint import ComplaintCategory
+from backend.app.models.complaint import ComplaintCategory, SmsLog
 from backend.app.auth.dependencies import require_admin
 from backend.app.auth.security import hash_password
 
@@ -157,20 +157,25 @@ def get_audit_logs(current_user: User = Depends(require_admin), db: Session = De
 
 @router.get("/categories")
 def get_categories():
-    """Returns official list of 13 grievance categories."""
+    """Returns official list of 14 institutional grievance categories."""
+    return ComplaintCategory.ALL
+
+@router.get("/sms-logs")
+def get_sms_logs(current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Returns audit history of all outgoing SMS notifications."""
+    logs = db.query(SmsLog).order_by(SmsLog.created_at.desc()).limit(100).all()
     return [
-        ComplaintCategory.INFRASTRUCTURE,
-        ComplaintCategory.HOSTEL,
-        ComplaintCategory.TRANSPORTATION,
-        ComplaintCategory.ACADEMIC,
-        ComplaintCategory.EXAMINATION,
-        ComplaintCategory.FACULTY,
-        ComplaintCategory.SCHOLARSHIPS,
-        ComplaintCategory.FEES,
-        ComplaintCategory.LIBRARY,
-        ComplaintCategory.LAB,
-        ComplaintCategory.SAFETY,
-        ComplaintCategory.HARASSMENT,
-        ComplaintCategory.OTHER,
+        {
+            "id": l.id,
+            "recipient_phone": l.recipient_phone,
+            "complaint_id": l.complaint_id,
+            "message": l.message,
+            "event_type": l.event_type,
+            "provider": l.provider,
+            "status": l.status,
+            "error_message": l.error_message,
+            "created_at": l.created_at,
+        }
+        for l in logs
     ]
 

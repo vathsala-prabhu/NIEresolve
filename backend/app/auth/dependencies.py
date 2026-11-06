@@ -34,6 +34,27 @@ def get_current_user(token: Optional[str] = Depends(oauth2_scheme), db: Session 
         )
     return user
 
+def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Optional[User]:
+    """Dependency to retrieve currently authenticated user if token present, or None if anonymous."""
+    if not token:
+        return None
+    
+    try:
+        payload = decode_access_token(token)
+        if not payload:
+            return None
+        
+        user_id: Optional[int] = payload.get("sub")
+        if user_id is None:
+            return None
+        
+        user = db.query(User).filter(User.id == int(user_id)).first()
+        if not user or not user.is_active:
+            return None
+        return user
+    except Exception:
+        return None
+
 def require_roles(allowed_roles: List[str]):
     """Factory dependency to enforce role-based access control."""
     def role_checker(current_user: User = Depends(get_current_user)) -> User:
@@ -59,4 +80,21 @@ require_any_officer = require_roles([
     UserRole.PRINCIPAL,
     UserRole.SUPER_ADMIN,
 ])
+
+def require_scholarship_publisher(current_user: User = Depends(get_current_user)) -> User:
+    """
+    Enforces that user is authorized to publish scholarship updates:
+    Must be Super Admin, or user with scholarship_coordinator role, or explicitly granted can_publish_scholarships permission.
+    """
+    is_authorized = (
+        current_user.role in [UserRole.SUPER_ADMIN, UserRole.SCHOLARSHIP_COORDINATOR]
+        or getattr(current_user, "can_publish_scholarships", False) is True
+    )
+    if not is_authorized:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Scholarship coordinator or publishing authorization required.",
+        )
+    return current_user
+
 

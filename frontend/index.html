@@ -28,16 +28,54 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Chart.js for Interactive Analytics -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- React 18 & ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Babel for React JSX Compilation -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- React 18 & ReactDOM (CDN with high reliability) -->
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel Standalone for JSX Compilation -->
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.24.4/babel.min.js"></script>
+    <!-- Fallback if jsdelivr is unavailable -->
+    <script>
+        if (typeof React === 'undefined') {
+            document.write('<script src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>');
+            document.write('<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>');
+        }
+        if (typeof Babel === 'undefined') {
+            document.write('<script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>');
+        }
+    </script>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230f2b5c'><path d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'/></svg>">
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
-    <div id="root"></div>
+    <!-- Immediate Institutional Loader inside #root (replaced when React mounts) -->
+    <div id="root">
+        <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <div style="text-align: center; padding: 20px;">
+                <div style="width: 48px; height: 48px; border: 4px solid #0f2b5c; border-top-color: #d97706; border-radius: 50%; animation: nie-spin 0.9s linear infinite; margin: 0 auto 16px;"></div>
+                <h1 style="font-size: 20px; font-weight: 700; color: #0f2b5c; letter-spacing: -0.02em; margin: 0 0 4px 0;">NIEresolve</h1>
+                <p style="font-size: 11px; font-weight: 700; color: #d97706; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 6px 0;">Every Concern Deserves a Response.</p>
+                <p style="font-size: 12px; color: #64748b; margin: 0;">The National Institute of Engineering, Mysuru</p>
+                <p style="font-size: 11px; color: #94a3b8; margin: 16px 0 0 0;">Connecting to campus network...</p>
+            </div>
+        </div>
+    </div>
+    <style>
+        @keyframes nie-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+
+    <!-- Global Error Interceptor for Diagnostic Visibility -->
+    <script>
+        window.addEventListener('error', function(e) {
+            console.error('[NIEresolve Critical Error]:', e.message, 'at', e.filename, 'line:', e.lineno);
+            var rootEl = document.getElementById('root');
+            if (rootEl && rootEl.innerText && rootEl.innerText.indexOf('Connecting to campus') !== -1) {
+                var errDiv = document.createElement('div');
+                errDiv.style.cssText = 'margin-top: 16px; padding: 12px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; color: #991b1b; font-size: 12px; max-width: 450px; text-align: left;';
+                errDiv.innerHTML = '<strong>Error loading interface:</strong><br>' + (e.message || 'Script evaluation error') + '<br><small style="color: #7f1d1d;">File: ' + (e.filename || 'app.js') + ':' + e.lineno + '</small>';
+                rootEl.querySelector('div > div').appendChild(errDiv);
+            }
+        });
+    </script>
 
     <!-- Application Script -->
     <script type="text/babel" src="/js/app.js"></script>
