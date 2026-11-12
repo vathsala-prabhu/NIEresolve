@@ -30,6 +30,44 @@ class AdminLoginRequest(BaseModel):
     username_or_email: str
     password: str
 
+class UnifiedLoginRequest(BaseModel):
+    username_or_email: Optional[str] = Field(None, description="Email, username, USN, or Faculty ID")
+    username: Optional[str] = Field(None, description="Username or email or USN")
+    email: Optional[str] = Field(None, description="Email address")
+    usn: Optional[str] = Field(None, description="University Seat Number")
+    password: str = Field(..., min_length=1, description="Account password")
+
+    model_config = ConfigDict(extra="ignore")
+
+class UserRegisterRequest(BaseModel):
+    full_name: str = Field(..., min_length=2, max_length=150, description="Full Name of the user")
+    email: str = Field(..., min_length=5, max_length=150, description="Email address")
+    username: Optional[str] = Field(None, max_length=100, description="Unique username (optional)")
+    password: str = Field(..., min_length=6, description="Password (minimum 6 characters)")
+    role: Optional[str] = Field("student", description="Role: student, faculty, etc.")
+    usn: Optional[str] = Field(None, description="University Seat Number for student (e.g. 4NI22CS101)")
+    department_id: Optional[int] = Field(None, description="Department ID")
+    branch: Optional[str] = Field(None, description="Academic Branch / Department")
+    phone: Optional[str] = Field(None, description="Contact phone number")
+    dob: Optional[str] = Field(None, description="Date of birth in YYYY-MM-DD or DD-MM-YYYY format")
+    parent_phone: Optional[str] = Field(None, description="Parent/Guardian mobile number")
+    identifier: Optional[str] = Field(None, description="Identifier alias for USN or Faculty ID")
+
+    model_config = ConfigDict(extra="ignore")
+
+class UserRegisterResponse(BaseModel):
+    message: str
+    user_id: int
+    email: str
+    username: str
+    full_name: str
+    role: str
+    identifier: Optional[str] = None
+    access_token: Optional[str] = None
+    token_type: str = "bearer"
+    department_name: Optional[str] = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

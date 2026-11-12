@@ -1,6 +1,6 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -87,6 +87,17 @@ app.include_router(notifications.router)
 app.include_router(analytics.router)
 app.include_router(admin.router)
 app.include_router(announcements.router)
+
+# Direct registration and login aliases
+@app.post("/api/register", response_model=auth.UserRegisterResponse, status_code=201, tags=["Authentication"])
+@app.post("/register", response_model=auth.UserRegisterResponse, status_code=201, tags=["Authentication"])
+def register_direct(payload: auth.UserRegisterRequest, db=Depends(auth.get_db)):
+    return auth.register_user(payload, db)
+
+@app.post("/api/login", response_model=auth.TokenResponse, tags=["Authentication"])
+@app.post("/login", response_model=auth.TokenResponse, tags=["Authentication"])
+def login_direct(payload: auth.UnifiedLoginRequest, db=Depends(auth.get_db)):
+    return auth.unified_login(payload, db)
 
 # Health & Info Endpoint
 @app.get("/api/info")

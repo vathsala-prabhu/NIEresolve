@@ -50,8 +50,14 @@ class Settings(BaseSettings):
     
     # Chatbot
     LLM_PROVIDER: str = "institutional_rag"
+
     OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-6-luna"
+
     GEMINI_API_KEY: str = ""
+
+    CHATBOT_ENABLED: bool = True
+    CHATBOT_MAX_TOKENS: int = 500
 
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
 

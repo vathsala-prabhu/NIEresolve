@@ -12,6 +12,9 @@ from backend.app.schemas.auth import (
     StudentPasswordResetRequest,
     FacultyLoginRequest,
     AdminLoginRequest,
+    UnifiedLoginRequest,
+    UserRegisterRequest,
+    UserRegisterResponse,
     TokenResponse,
     UserResponse,
 )
@@ -73,6 +76,258 @@ def _verify_student_identity_factors(student: StudentProfile, full_name: Optiona
 
     return True
 
+@router.post("/register", response_model=UserRegisterResponse, status_code=status.HTTP_201_CREATED)
+def register_user(payload: UserRegisterRequest, db: Session = Depends(get_db)):
+    """
+    Public registration endpoint for new students, faculty, or institutional members.
+    Validates user credentials, checks for duplicates, hashes password securely,
+    saves record in SQLite database, and returns JWT access token.
+    """
+    clean_email = payload.email.strip().lower()
+    if "@" not in clean_email or "." not in clean_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email format.")
+
+    # Determine unique username and USN
+    clean_username = (payload.username or "").strip().lower()
+    clean_usn = (payload.usn or payload.identifier or "").strip().upper()
+
+    assigned_role = (payload.role or "student").strip().lower()
+    valid_roles = [
+        UserRole.STUDENT,
+        UserRole.FACULTY,
+        UserRole.DEPT_OFFICER,
+        UserRole.GRIEVANCE_CELL,
+        UserRole.PRINCIPAL,
+        UserRole.SUPER_ADMIN,
+        UserRole.SCHOLARSHIP_COORDINATOR,
+    ]
+    if assigned_role not in valid_roles:
+        assigned_role = UserRole.STUDENT
+
+    if not clean_username:
+        if assigned_role == UserRole.STUDENT and clean_usn:
+            clean_username = clean_usn.lower()
+        elif assigned_role == UserRole.FACULTY and payload.identifier:
+            clean_username = payload.identifier.strip().lower()
+        else:
+            clean_username = clean_email.split("@")[0].lower()
+
+    # Password validation
+    if len(payload.password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters long.",
+        )
+
+    # Check duplicate email
+    existing_by_email = db.query(User).filter(User.email.ilike(clean_email)).first()
+    if existing_by_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"An account with email '{clean_email}' already exists. Please sign in instead.",
+        )
+
+    # Check duplicate username
+    existing_by_username = db.query(User).filter(User.username.ilike(clean_username)).first()
+    if existing_by_username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"An account with username '{clean_username}' already exists. Please choose a different username.",
+        )
+
+    # Department resolution
+    dept_id = payload.department_id
+    dept_name = (payload.branch or "").strip()
+    if dept_id:
+        dept = db.query(Department).filter(Department.id == dept_id).first()
+        if dept and not dept_name:
+            dept_name = dept.name
+    elif dept_name:
+        dept = db.query(Department).filter(
+            (Department.name.ilike(f"%{dept_name}%")) | (Department.code.ilike(f"%{dept_name}%"))
+        ).first()
+        if dept:
+            dept_id = dept.id
+            dept_name = dept.name
+        else:
+            dept_name = "Computer Science & Engineering"
+    else:
+        dept_name = "Computer Science & Engineering"
+
+    # Check student USN uniqueness
+    if assigned_role == UserRole.STUDENT:
+        if not clean_usn:
+            clean_usn = clean_username.upper()
+        existing_student = db.query(StudentProfile).filter(StudentProfile.usn.ilike(clean_usn)).first()
+        if existing_student:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"A student profile with USN '{clean_usn}' already exists. Please sign in or use password setup.",
+            )
+
+    # Check faculty ID uniqueness
+    if assigned_role == UserRole.FACULTY:
+        fac_id = (payload.identifier or clean_username).upper()
+        existing_faculty = db.query(FacultyProfile).filter(FacultyProfile.faculty_id.ilike(fac_id)).first()
+        if existing_faculty:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"A faculty profile with ID '{fac_id}' already exists.",
+            )
+
+    # Hash password securely
+    hashed = hash_password(payload.password)
+
+    # Create User
+    new_user = User(
+        email=clean_email,
+        username=clean_username,
+        full_name=payload.full_name.strip(),
+        hashed_password=hashed,
+        role=assigned_role,
+        department_id=dept_id,
+        phone=payload.phone.strip() if payload.phone else None,
+        is_active=True,
+    )
+    db.add(new_user)
+    db.flush()
+
+    # Associated profiles
+    identifier_val = clean_username
+    if assigned_role == UserRole.STUDENT:
+        identifier_val = clean_usn
+        clean_dob = normalize_dob(payload.dob) if payload.dob else "2003-01-01"
+        branch_final = dept_name or "Computer Science & Engineering"
+        parent_phone_val = (payload.parent_phone or payload.phone or "9876543210").strip()
+        sp = StudentProfile(
+            user_id=new_user.id,
+            usn=clean_usn,
+            hashed_dob=hash_password(clean_dob),
+            dob_raw_display=payload.dob if payload.dob else None,
+            course="B.Tech",
+            branch=branch_final,
+            semester=4,
+            year=2,
+            section="A",
+            cgpa=8.0,
+            category="General",
+            annual_income=250000.0,
+            state_of_domicile="Karnataka",
+            student_phone_number=payload.phone.strip() if payload.phone else None,
+            parent_phone_number=parent_phone_val,
+            parent_name="Parent of " + new_user.full_name,
+            parent_relation="Father",
+        )
+        db.add(sp)
+    elif assigned_role == UserRole.FACULTY:
+        fac_id = (payload.identifier or clean_username).upper()
+        identifier_val = fac_id
+        clean_dob = normalize_dob(payload.dob) if payload.dob else "1985-01-01"
+        fp = FacultyProfile(
+            user_id=new_user.id,
+            faculty_id=fac_id,
+            hashed_dob=hash_password(clean_dob),
+            department_name=dept_name or "Engineering",
+            designation="Assistant Professor",
+            qualification="Ph.D",
+        )
+        db.add(fp)
+
+    db.commit()
+    db.refresh(new_user)
+
+    token = create_access_token({
+        "sub": str(new_user.id),
+        "role": new_user.role,
+        "username": new_user.username,
+        "full_name": new_user.full_name,
+        "usn": identifier_val if new_user.role == UserRole.STUDENT else None,
+    })
+
+    return UserRegisterResponse(
+        message="Registration successful! Your account is active.",
+        user_id=new_user.id,
+        email=new_user.email,
+        username=new_user.username,
+        full_name=new_user.full_name,
+        role=new_user.role,
+        identifier=identifier_val,
+        access_token=token,
+        token_type="bearer",
+        department_name=dept_name,
+    )
+
+@router.post("/login", response_model=TokenResponse)
+def unified_login(payload: UnifiedLoginRequest, db: Session = Depends(get_db)):
+    """
+    Unified login endpoint accepting email, username, USN, or Faculty ID along with password.
+    Routes and authenticates any registered student, faculty, officer, or administrator.
+    """
+    ident = (payload.username_or_email or payload.username or payload.email or payload.usn or "").strip()
+    if not ident:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Please provide an email, username, USN, or Faculty ID.",
+        )
+
+    # 1. Direct User lookup by email or username
+    user = (
+        db.query(User)
+        .filter((User.email.ilike(ident)) | (User.username.ilike(ident)))
+        .first()
+    )
+
+    # 2. If not found, lookup by Student USN
+    if not user:
+        student = db.query(StudentProfile).filter(StudentProfile.usn.ilike(ident)).first()
+        if student and student.user:
+            user = student.user
+
+    # 3. If not found, lookup by Faculty ID
+    if not user:
+        faculty = db.query(FacultyProfile).filter(FacultyProfile.faculty_id.ilike(ident)).first()
+        if faculty and faculty.user:
+            user = faculty.user
+
+    if not user or not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials. Please verify your identifier and password.",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is deactivated. Please contact campus administrator.",
+        )
+
+    identifier = user.username
+    dept_name = user.department.name if user.department else None
+    if user.student_profile:
+        identifier = user.student_profile.usn
+        dept_name = user.student_profile.branch or dept_name
+    elif user.faculty_profile:
+        identifier = user.faculty_profile.faculty_id
+        dept_name = user.faculty_profile.department_name or dept_name
+
+    token = create_access_token({
+        "sub": str(user.id),
+        "role": user.role,
+        "username": user.username,
+        "full_name": user.full_name,
+        "usn": identifier if user.role == UserRole.STUDENT else None,
+    })
+
+    return TokenResponse(
+        access_token=token,
+        role=user.role,
+        user_id=user.id,
+        full_name=user.full_name,
+        email=user.email,
+        identifier=identifier,
+        department_name=dept_name,
+    )
+
 @router.post("/student-login", response_model=TokenResponse)
 def student_login(payload: StudentLoginRequest, db: Session = Depends(get_db)):
     """
@@ -84,6 +339,13 @@ def student_login(payload: StudentLoginRequest, db: Session = Depends(get_db)):
     check_rate_limit(clean_usn)
 
     student = db.query(StudentProfile).filter(StudentProfile.usn == clean_usn).first()
+    if not student or not student.user:
+        alt_user = db.query(User).filter(
+            (User.email.ilike(payload.usn.strip())) | (User.username.ilike(payload.usn.strip()))
+        ).first()
+        if alt_user and alt_user.student_profile and alt_user.student_profile.user:
+            student = alt_user.student_profile
+
     if not student or not student.user:
         record_failed_attempt(clean_usn)
         raise HTTPException(
@@ -261,6 +523,15 @@ def admin_login(payload: AdminLoginRequest, db: Session = Depends(get_db)):
         .first()
     )
     if not user:
+        student = db.query(StudentProfile).filter(StudentProfile.usn.ilike(ident)).first()
+        if student and student.user:
+            user = student.user
+    if not user:
+        faculty = db.query(FacultyProfile).filter(FacultyProfile.faculty_id.ilike(ident)).first()
+        if faculty and faculty.user:
+            user = faculty.user
+
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password.",
@@ -275,14 +546,25 @@ def admin_login(payload: AdminLoginRequest, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated.")
 
+    identifier = user.username
+    if user.student_profile:
+        identifier = user.student_profile.usn
+    elif user.faculty_profile:
+        identifier = user.faculty_profile.faculty_id
+
     token = create_access_token({
         "sub": str(user.id),
         "role": user.role,
         "username": user.username,
         "full_name": user.full_name,
+        "usn": identifier if user.role == UserRole.STUDENT else None,
     })
 
     dept_name = user.department.name if user.department else None
+    if user.student_profile and user.student_profile.branch:
+        dept_name = user.student_profile.branch
+    elif user.faculty_profile and user.faculty_profile.department_name:
+        dept_name = user.faculty_profile.department_name
 
     return TokenResponse(
         access_token=token,
@@ -290,7 +572,7 @@ def admin_login(payload: AdminLoginRequest, db: Session = Depends(get_db)):
         user_id=user.id,
         full_name=user.full_name,
         email=user.email,
-        identifier=user.username,
+        identifier=identifier,
         department_name=dept_name,
     )
 

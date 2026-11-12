@@ -850,7 +850,7 @@ function App() {
 // LOGIN PAGE COMPONENT (Student, Faculty, Administrative with Demo Pills)
 // ----------------------------------------------------------------------
 function LoginPage({ onLogin, addToast }) {
-    const [loginType, setLoginType] = useState("student"); // student, faculty, admin
+    const [loginType, setLoginType] = useState("student"); // student, faculty, admin, register
     const [studentAuthMode, setStudentAuthMode] = useState("password"); // "password", "setup", "mfa"
     const [usn, setUsn] = useState("");
     const [studentPassword, setStudentPassword] = useState("");
@@ -863,6 +863,16 @@ function LoginPage({ onLogin, addToast }) {
     const [adminUsername, setAdminUsername] = useState("");
     const [adminPassword, setAdminPassword] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
+    // Registration state
+    const [regFullName, setRegFullName] = useState("");
+    const [regEmail, setRegEmail] = useState("");
+    const [regUsn, setRegUsn] = useState("");
+    const [regBranch, setRegBranch] = useState("Computer Science & Engineering");
+    const [regPhone, setRegPhone] = useState("");
+    const [regDob, setRegDob] = useState("");
+    const [regPassword, setRegPassword] = useState("");
+    const [regConfirmPassword, setRegConfirmPassword] = useState("");
 
     const buildUser = (data) => ({
         id: data.user_id,
@@ -878,7 +888,42 @@ function LoginPage({ onLogin, addToast }) {
         e.preventDefault();
         setSubmitting(true);
         try {
-            if (loginType === "student") {
+            if (loginType === "register") {
+                if (regPassword !== regConfirmPassword) {
+                    addToast("Passwords do not match. Please verify your password confirmation.", "error");
+                    setSubmitting(false);
+                    return;
+                }
+                if (regPassword.length < 6) {
+                    addToast("Password must be at least 6 characters long.", "error");
+                    setSubmitting(false);
+                    return;
+                }
+                const regPayload = {
+                    full_name: regFullName.trim(),
+                    email: regEmail.trim(),
+                    usn: regUsn.trim().toUpperCase(),
+                    branch: regBranch,
+                    password: regPassword,
+                    phone: regPhone.trim() || null,
+                    dob: regDob || null,
+                    role: "student",
+                };
+                const regRes = await API.request("/api/auth/register", {
+                    method: "POST",
+                    body: JSON.stringify(regPayload),
+                });
+                addToast(regRes.message || "Account created successfully!", "success");
+                if (regRes.access_token) {
+                    onLogin(buildUser(regRes), regRes.access_token);
+                } else {
+                    setUsn(regUsn.trim().toUpperCase());
+                    setStudentPassword(regPassword);
+                    setLoginType("student");
+                    setStudentAuthMode("password");
+                }
+                return;
+            } else if (loginType === "student") {
                 if (studentAuthMode === "setup") {
                     const res = await API.request("/api/auth/student-setup-password", {
                         method: "POST",
@@ -970,13 +1015,14 @@ function LoginPage({ onLogin, addToast }) {
                                 { key: "student", label: "Student" },
                                 { key: "faculty", label: "Faculty" },
                                 { key: "admin", label: "Officer / Admin" },
+                                { key: "register", label: "Register" },
                             ].map((t) => (
                                 <button
                                     key={t.key}
                                     type="button"
                                     onClick={() => setLoginType(t.key)}
                                     className={`flex-1 py-2 text-xs font-semibold border-b-2 text-center transition ${loginType === t.key
-                                        ? "border-nie-navy text-nie-navy"
+                                        ? (t.key === "register" ? "border-nie-gold text-nie-gold font-bold" : "border-nie-navy text-nie-navy font-bold")
                                         : "border-transparent text-slate-500 hover:text-slate-700"
                                         }`}
                                 >
@@ -986,6 +1032,125 @@ function LoginPage({ onLogin, addToast }) {
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-4">
+                            {loginType === "register" && (
+                                <div className="space-y-3">
+                                    <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-lg text-xs text-amber-900 flex items-center justify-between">
+                                        <span><strong>Student Registration Portal:</strong> Create your institutional account to register grievances and track redressal.</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setLoginType("student")}
+                                            className="text-[11px] text-amber-800 underline font-semibold ml-2 whitespace-nowrap"
+                                        >
+                                            Sign In
+                                        </button>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-700">Full Name *</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder="e.g. Vikram Gowda"
+                                            value={regFullName}
+                                            onChange={(e) => setRegFullName(e.target.value)}
+                                            className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-nie-navy"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-700">Institutional Email Address *</label>
+                                        <input
+                                            type="email"
+                                            required
+                                            placeholder="e.g. 4ni22cs101@nie.ac.in"
+                                            value={regEmail}
+                                            onChange={(e) => setRegEmail(e.target.value)}
+                                            className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-nie-navy"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700">University Seat Number (USN) *</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                placeholder="e.g. 4NI22CS101"
+                                                value={regUsn}
+                                                onChange={(e) => setRegUsn(e.target.value.toUpperCase())}
+                                                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm uppercase placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-nie-navy font-mono"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700">Department / Branch *</label>
+                                            <select
+                                                value={regBranch}
+                                                onChange={(e) => setRegBranch(e.target.value)}
+                                                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-nie-navy"
+                                            >
+                                                <option value="Computer Science & Engineering">Computer Science & Engineering</option>
+                                                <option value="Information Science & Engineering">Information Science & Engineering</option>
+                                                <option value="Electronics & Communication Engineering">Electronics & Communication</option>
+                                                <option value="Electrical & Electronics Engineering">Electrical & Electronics</option>
+                                                <option value="Mechanical Engineering">Mechanical Engineering</option>
+                                                <option value="Civil Engineering">Civil Engineering</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700">Mobile Phone</label>
+                                            <input
+                                                type="tel"
+                                                placeholder="e.g. 9876543210"
+                                                value={regPhone}
+                                                onChange={(e) => setRegPhone(e.target.value)}
+                                                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-nie-navy"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700">Date of Birth (DOB)</label>
+                                            <input
+                                                type="date"
+                                                value={regDob}
+                                                onChange={(e) => setRegDob(e.target.value)}
+                                                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-nie-navy"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700">Create Password (min 6 chars) *</label>
+                                            <input
+                                                type="password"
+                                                required
+                                                minLength="6"
+                                                placeholder="••••••••"
+                                                value={regPassword}
+                                                onChange={(e) => setRegPassword(e.target.value)}
+                                                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-nie-navy"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700">Confirm Password *</label>
+                                            <input
+                                                type="password"
+                                                required
+                                                minLength="6"
+                                                placeholder="••••••••"
+                                                value={regConfirmPassword}
+                                                onChange={(e) => setRegConfirmPassword(e.target.value)}
+                                                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-nie-navy"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             {loginType === "student" && (
                                 <>
                                     {studentAuthMode === "password" && (
@@ -1220,8 +1385,40 @@ function LoginPage({ onLogin, addToast }) {
                                 disabled={submitting}
                                 className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-nie-navy hover:bg-nie-navydark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-nie-navy transition disabled:opacity-50"
                             >
-                                {submitting ? "Authenticating..." : `Sign In as ${loginType === "student" ? "Student" : loginType === "faculty" ? "Faculty" : "Authorized Officer"}`}
+                                {submitting
+                                    ? (loginType === "register" ? "Registering Account..." : "Authenticating...")
+                                    : (loginType === "register"
+                                        ? "Register & Sign In to NIEresolve"
+                                        : `Sign In as ${loginType === "student" ? "Student" : loginType === "faculty" ? "Faculty" : "Authorized Officer"}`)
+                                }
                             </button>
+                            {loginType !== "register" ? (
+                                <div className="mt-3 text-center">
+                                    <p className="text-xs text-slate-600">
+                                        First-time student without an account?{" "}
+                                        <button
+                                            type="button"
+                                            onClick={() => setLoginType("register")}
+                                            className="text-nie-gold font-bold hover:underline"
+                                        >
+                                            Register New Account &rarr;
+                                        </button>
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="mt-3 text-center">
+                                    <p className="text-xs text-slate-600">
+                                        Already registered?{" "}
+                                        <button
+                                            type="button"
+                                            onClick={() => setLoginType("student")}
+                                            className="text-nie-navy font-bold hover:underline"
+                                        >
+                                            &larr; Return to Sign In
+                                        </button>
+                                    </p>
+                                </div>
+                            )}
                         </form>
 
                         {/* Pre-configured Demo Accounts Helper (REMOVE before real deployment) */}

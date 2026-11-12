@@ -21,7 +21,13 @@ from backend.app.models.complaint import (
     ComplaintTimeline,
 )
 from backend.app.models.notification import Notification, NotificationType
-from backend.app.schemas.auth import StudentLoginRequest, FacultyLoginRequest, AdminLoginRequest
+from backend.app.schemas.auth import (
+    StudentLoginRequest,
+    FacultyLoginRequest,
+    AdminLoginRequest,
+    UserRegisterRequest,
+    UnifiedLoginRequest,
+)
 from backend.app.schemas.complaint import (
     ComplaintCreate,
     EvidenceVerifyRequest,
@@ -29,7 +35,7 @@ from backend.app.schemas.complaint import (
     DuplicateMergeRequest,
     StudentConfirmResolutionRequest,
 )
-from backend.app.routers.auth import student_login, faculty_login, admin_login
+from backend.app.routers.auth import student_login, faculty_login, admin_login, register_user, unified_login
 from backend.app.routers.complaints import submit_complaint, get_complaints, get_complaint_details
 from backend.app.routers.evidence import verify_evidence
 from backend.app.services.complaint_service import ComplaintService
@@ -2823,34 +2829,15 @@ def test_five_verified_nsp_schemes_and_official_links():
     db = SessionLocal()
     try:
         from backend.app.routers.scholarships import get_all_scholarships
-def test_five_verified_nsp_schemes_and_official_links():
-    """Verifies that exactly five verified NSP scheme entries exist with authentic official guideline links and income limits."""
-    db = SessionLocal()
-    try:
-        from backend.app.routers.scholarships import get_all_scholarships
         
         schs = get_all_scholarships(db)
         assert len(schs) == 5, f"Expected exactly 5 verified NSP schemes, got {len(schs)}"
-
-        schs = get_all_scholarships(db)
-        assert len(schs) == 5, f"Expected exactly 5 verified NSP schemes, got {len(schs)}"
         names = [s.name for s in schs]
         assert any("Pragati" in n for n in names)
         assert any("Saksham" in n for n in names)
         assert any("Swanath" in n for n in names)
         assert any("YASASVI" in n for n in names)
         assert any("CSSS" in n for n in names)
-
-        names = [s.name for s in schs]
-        assert any("Pragati" in n for n in names)
-        assert any("Saksham" in n for n in names)
-        assert any("Swanath" in n for n in names)
-        assert any("YASASVI" in n for n in names)
-        assert any("CSSS" in n for n in names)
-        # Check official links
-        pragati = next(s for s in schs if "Pragati" in s.name)
-        assert pragati.official_url == "https://scholarships.gov.in/public/schemeGuidelines/AICTE/AICTE_2010_G.pdf"
-        assert pragati.max_family_income == 800000.0
 
         # Check official links
         pragati = next(s for s in schs if "Pragati" in s.name)
@@ -2877,26 +2864,151 @@ def test_five_verified_nsp_schemes_and_official_links():
         db.close()
 
 
-        saksham = next(s for s in schs if "Saksham" in s.name)
-        assert saksham.official_url == "https://scholarships.gov.in/public/schemeGuidelines/AICTE/AICTE_2012_G.pdf"
-        assert saksham.disability_required is True
-        assert saksham.max_family_income == 800000.0
+def test_user_registration_and_db_persistence():
+    """Verifies that new users can register, records persist into users and student_profiles tables, and password is encrypted."""
+    db = SessionLocal()
+    try:
+        usn_test = "4NI23CS999"
+        email_test = "regtest.student@nie.ac.in"
+        
+        # Clean up any previous test artifacts if existed
+        existing = db.query(User).filter((User.email == email_test) | (User.username == usn_test.lower())).first()
+        if existing:
+            db.delete(existing)
+            db.commit()
 
-        swanath = next(s for s in schs if "Swanath" in s.name)
-        assert swanath.official_url == "https://scholarships.gov.in/public/schemeGuidelines/AICTE/AICTE_3039_G.pdf"
-        assert swanath.max_family_income == 800000.0
+        initial_count = db.query(User).count()
+        payload = UserRegisterRequest(
+            full_name="Deepak Hegde",
+            email=email_test,
+            usn=usn_test,
+            branch="Computer Science & Engineering",
+            password="SecurePassword@2026",
+            phone="9988776655",
+            dob="2004-03-20",
+            role="student",
+        )
+        res = register_user(payload, db)
+        assert res.user_id is not None
+        assert res.email == email_test
+        assert res.role == "student"
+        assert res.identifier == usn_test
+        assert res.access_token is not None
+        assert len(res.access_token) > 20
 
-        yasasvi = next(s for s in schs if "YASASVI" in s.name)
-        assert yasasvi.official_url == "https://scholarships.gov.in/All-Scholarships"
-        assert yasasvi.max_family_income == 250000.0
+        # Verify DB row inserted into users table
+        db_user = db.query(User).filter(User.id == res.user_id).first()
+        assert db_user is not None
+        assert db_user.email == email_test
+        assert db_user.full_name == "Deepak Hegde"
+        assert db_user.is_active is True
+        assert db_user.hashed_password != "SecurePassword@2026"
+        assert db.query(User).count() == initial_count + 1
 
-        csss = next(s for s in schs if "CSSS" in s.name)
-        assert csss.official_url == "https://scholarships.gov.in/public/schemeGuidelines/CSSS_GUIDLINES_07022024_updated.pdf"
-        assert csss.max_family_income == 450000.0
+        # Verify DB row inserted into student_profiles table
+        assert db_user.student_profile is not None
+        assert db_user.student_profile.usn == usn_test
+        assert db_user.student_profile.branch == "Computer Science & Engineering"
     finally:
         db.close()
 
 
+def test_user_registration_duplicate_and_validation_rules():
+    """Verifies duplicate email and USN prevention, and password length requirement."""
+    db = SessionLocal()
+    try:
+        # 1. Duplicate email rejection
+        dup_email_payload = UserRegisterRequest(
+            full_name="Duplicate Email Student",
+            email="regtest.student@nie.ac.in",
+            usn="4NI23CS001",
+            password="ValidPassword@123",
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            register_user(dup_email_payload, db)
+        assert exc_info.value.status_code == 400
+        assert "already exists" in exc_info.value.detail
+
+        # 2. Duplicate USN rejection
+        dup_usn_payload = UserRegisterRequest(
+            full_name="Duplicate USN Student",
+            email="unique.student.new@nie.ac.in",
+            usn="4NI23CS999",
+            password="ValidPassword@123",
+        )
+        with pytest.raises(HTTPException) as exc_info2:
+            register_user(dup_usn_payload, db)
+        assert exc_info2.value.status_code == 400
+        assert "already exists" in exc_info2.value.detail
+
+        # 3. Short password validation (tested via Pydantic or register_user)
+        with pytest.raises(Exception):
+            UserRegisterRequest(
+                full_name="Short Pass Student",
+                email="shortpass@nie.ac.in",
+                usn="4NI23CS002",
+                password="123",
+            )
+    finally:
+        db.close()
 
 
+def test_newly_registered_user_login_options():
+    """Verifies that newly registered users can log in via student-login, unified login, and admin login."""
+    db = SessionLocal()
+    try:
+        # A. Student login with USN and password
+        s_res = student_login(
+            StudentLoginRequest(usn="4NI23CS999", password="SecurePassword@2026"),
+            db
+        )
+        assert s_res.role == "student"
+        assert s_res.identifier == "4NI23CS999"
+        assert len(s_res.access_token) > 20
 
+        # B. Unified login with USN
+        u_res = unified_login(
+            UnifiedLoginRequest(username_or_email="4NI23CS999", password="SecurePassword@2026"),
+            db
+        )
+        assert u_res.role == "student"
+        assert u_res.email == "regtest.student@nie.ac.in"
+
+        # C. Unified login with email
+        u_res_email = unified_login(
+            UnifiedLoginRequest(username_or_email="regtest.student@nie.ac.in", password="SecurePassword@2026"),
+            db
+        )
+        assert u_res_email.role == "student"
+
+        # D. Admin/Officer login with institutional email
+        a_res = admin_login(
+            AdminLoginRequest(username_or_email="regtest.student@nie.ac.in", password="SecurePassword@2026"),
+            db
+        )
+        assert a_res.role == "student"
+    finally:
+        db.close()
+
+
+def test_existing_nine_institutional_accounts_integrity():
+    """Verifies that the 9 baseline institutional accounts remain active and functional."""
+    db = SessionLocal()
+    try:
+        baseline_usernames = [
+            "admin",
+            "principal",
+            "grievancecell",
+            "officer_cse",
+            "officer_mech",
+            "4NI21CS045",
+            "4NI21CS088",
+            "NIE-FAC-102",
+            "coordinator_scholarships",
+        ]
+        for u in baseline_usernames:
+            user = db.query(User).filter(User.username.ilike(u)).first()
+            assert user is not None, f"Baseline account {u} missing from database"
+            assert user.is_active is True, f"Baseline account {u} is deactivated"
+    finally:
+        db.close()
